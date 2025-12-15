@@ -42,7 +42,6 @@ from agentdojo.default_suites.v1.tools.travel_booking_client import (
     reserve_restaurant,
 )
 from agentdojo.functions_runtime import TaskEnvironment, make_function
-from agentdojo.task_suite.task_suite import TaskSuite
 
 
 class TravelEnvironment(TaskEnvironment):
@@ -107,6 +106,9 @@ deepdiff_paths_to_exclude = [
 ]
 
 
+# Define TravelDeepDiff before importing TaskSuite to make it available for circular imports
 TravelDeepDiff = partial(DeepDiff, exclude_paths=deepdiff_paths_to_exclude)
+
+from agentdojo.task_suite.task_suite import TaskSuite
 
 task_suite = TaskSuite[TravelEnvironment]("travel", TravelEnvironment, [make_function(tool) for tool in TOOLS])

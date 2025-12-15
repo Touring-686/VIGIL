@@ -36,6 +36,8 @@ def benchmark_suite(
     system_message_name: str | None = None,
     system_message: str | None = None,
     live: Live | None = None,
+    attack_vector_type: str | None = None,
+    attack_type: str | None = None,
     tool_output_format: Literal["yaml", "json"] | None = None,
 ) -> SuiteResults:
     if not load_dotenv(".env"):
@@ -72,7 +74,9 @@ def benchmark_suite(
                 benchmark_version=benchmark_version,
             )
         else:
-            attacker_ = load_attack(attack, suite, pipeline)
+            attacker_ = load_attack(
+                attack, suite, pipeline, attack_vector_type=attack_vector_type, attack_type=attack_type
+            )
             results = benchmark_suite_with_injections(
                 pipeline,
                 suite,
@@ -90,6 +94,13 @@ def benchmark_suite(
 
 def show_results(suite_name: str, results: SuiteResults, show_security_results: bool):
     utility_results = results["utility_results"].values()
+    if len(utility_results) == 0:
+        print(f"Results for suite {suite_name}")
+        print("No utility results were produced (utility_results is empty).")
+        if show_security_results:
+            print("No security results were produced.")
+        return
+
     avg_utility = sum(utility_results) / len(utility_results)
 
     print(f"Results for suite {suite_name}")
@@ -101,8 +112,11 @@ def show_results(suite_name: str, results: SuiteResults, show_security_results: 
         print(f"\nPassed injection tasks as user tasks: {passed_injection_tasks}/{total_injection_tasks}")
 
         security_results = results["security_results"].values()
-        avg_security = sum(security_results) / len(security_results)
-        print(f"Average security: {avg_security * 100:.2f}%")
+        if len(security_results) == 0:
+            print("No security results were produced.")
+        else:
+            avg_security = sum(security_results) / len(security_results)
+            print(f"Average security: {avg_security * 100:.2f}%")
 
 
 @click.command()
@@ -143,6 +157,18 @@ def show_results(suite_name: str, results: SuiteResults, show_security_results: 
     help=f"The attack to use. `None` by default. It should be one of {ATTACKS}, or a custom attack defined and registered in of of the `--module-to-load`. If `None`, no attack is used.",
 )
 @click.option(
+    "--attack-vector-type",
+    type=click.Choice(["type_i_a", "type_i_b", "type_ii_a", "type_ii_b", "type_iii_a", "type_iii_b"]),
+    default=None,
+    help="Vector type for tool_attack; ignored for other attacks.",
+)
+@click.option(
+    "--attack-type",
+    type=str,
+    default=None,
+    help="Specific attack category label (e.g., parameter_override) for logging/analysis.",
+)
+@click.option(
     "--defense",
     type=click.Choice(DEFENSES),
     default=None,
@@ -176,7 +202,14 @@ def show_results(suite_name: str, results: SuiteResults, show_security_results: 
     type=str,
     multiple=True,
     default=tuple(),
-    help="The user tasks to benchmark. If not provided, all tasks in the suite are run.",
+    help="The injection tasks to benchmark. If not provided, all injection tasks in the suite are run.",
+)
+@click.option(
+    "--injection-task-id",
+    "-iti",
+    type=str,
+    default=None,
+    help="Run only this single injection task ID for debugging; overrides --injection-task when set.",
 )
 @click.option(
     "--suite",
@@ -222,9 +255,33 @@ def main(
     system_message_name: str | None = None,
     system_message: str | None = None,
     max_workers: int = 1,
-    force_rerun: bool = False,
+    # force_rerun: bool = False,
+    force_rerun: bool = True,
     modules_to_load: tuple[str, ...] = (),
+    attack_vector_type: str | None = None,
+    attack_type: str | None = None,
+    injection_task_id: str | None = None,
 ):
+    import os
+    import re
+
+    # Override injection_tasks with a single provided injection_task_id (debug convenience)
+    if injection_task_id:
+        # Convert CamelCase format (e.g., InjectionTask400) to snake_case (e.g., injection_task_400)
+        # if the user provided the CamelCase format
+        if re.match(r'^InjectionTask\d+$', injection_task_id):
+            # Extract the number and convert to snake_case
+            match = re.search(r'\d+$', injection_task_id)
+            if match:
+                task_number = match.group()
+                injection_task_id = f"injection_task_{task_number}"
+        injection_tasks = (injection_task_id,)
+
+    # Propagate attack_vector_type to suite constructors that may use it to filter tools
+    if attack_vector_type is not None:
+        os.environ["ATTACK_VECTOR_TYPE"] = attack_vector_type
+    else:
+        os.environ.pop("ATTACK_VECTOR_TYPE", None)
     for module in modules_to_load:
         importlib.import_module(module)
 
@@ -255,8 +312,15 @@ def main(
                 system_message_name=system_message_name,
                 system_message=system_message,
                 force_rerun=force_rerun,
+                attack_vector_type=attack_vector_type,
+                attack_type=attack_type,
             )
-        combined_results = SuiteResults(utility_results={}, security_results={}, injection_tasks_utility_results={})
+        combined_results = SuiteResults(
+            utility_results={}, 
+            security_results={}, 
+            injection_tasks_utility_results={},
+            successful_injection_details=[],
+            )
         for suite_name, result in results.items():
             show_results(suite_name, result, attack is not None)
             for user_task, injection_task in result["utility_results"]:
@@ -282,6 +346,8 @@ def main(
             suites,
             repeat(model),
             repeat(logdir),
+            repeat(force_rerun),
+            repeat(benchmark_version),
             repeat(user_tasks),
             repeat(injection_tasks),
             repeat(model_id),
@@ -290,7 +356,10 @@ def main(
             repeat(tool_delimiter),
             repeat(system_message_name),
             repeat(system_message),
-            repeat(force_rerun),
+            repeat(None),  # live
+            repeat(attack_vector_type),
+            repeat(attack_type),
+            repeat(None),  # tool_output_format
         )
         results = p.starmap(benchmark_suite, arguments)
 

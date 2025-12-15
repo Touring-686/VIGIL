@@ -4,6 +4,13 @@ from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement
 from agentdojo.attacks.base_attacks import BaseAttack
 from agentdojo.task_suite.task_suite import TaskSuite
 
+# Register built-in attacks (baseline/dos/etc.) and custom tool_attack if available.
+try:
+    import agentdojo.attacks.tool_attack  # noqa: F401
+except ImportError:
+    # tool_attack is optional; ignore if not present.
+    pass
+
 ATTACKS: dict[str, type[BaseAttack]] = {}
 
 
@@ -37,7 +44,12 @@ def register_attack(attack: type[A]) -> type[A]:
     return attack
 
 
-def load_attack(attack_name: str, task_suite: TaskSuite, target_pipeline: BasePipelineElement) -> BaseAttack:
+def load_attack(
+    attack_name: str,
+    task_suite: TaskSuite,
+    target_pipeline: BasePipelineElement,
+    **kwargs,
+) -> BaseAttack:
     """Gets and instantiates an attack from the registry.
 
     To use your own attack, you must first register it using the [`register_attack`][agentdojo.attacks.attack_registry.register_attack] function.
@@ -47,4 +59,9 @@ def load_attack(attack_name: str, task_suite: TaskSuite, target_pipeline: BasePi
         task_suite: The task suite to use for the attack.
         target_pipeline: The target pipeline to attack.
     """
-    return ATTACKS[attack_name](task_suite, target_pipeline)
+    attack_cls = ATTACKS[attack_name]
+    try:
+        return attack_cls(task_suite, target_pipeline, **kwargs)
+    except TypeError:
+        # Backwards compatibility for attacks not expecting kwargs
+        return attack_cls(task_suite, target_pipeline)

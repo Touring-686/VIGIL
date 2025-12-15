@@ -13,12 +13,15 @@ from typing_extensions import Self, TypedDict
 from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement
 from agentdojo.attacks.base_attacks import BaseAttack
 from agentdojo.base_tasks import BaseInjectionTask, BaseUserTask
-from agentdojo.functions_runtime import Env
+from agentdojo.functions_runtime import Env, Function
 from agentdojo.logging import Logger, TraceLogger
 from agentdojo.task_suite.load_suites import get_suite
 from agentdojo.task_suite.task_suite import TaskSuite
 from agentdojo.types import ChatMessage
 
+processed_count: int = 0
+utility_true_count: int = 0
+security_true_count: int = 0
 
 class SuiteResults(TypedDict):
     """The results of running a suite of tasks with a given pipeline."""
@@ -31,6 +34,9 @@ class SuiteResults(TypedDict):
     key is a tuple of the user task ID and the injection task ID."""
     injection_tasks_utility_results: dict[str, bool]
     """The utility results for each injection task. The key is the injection task ID."""
+    successful_injection_details: list[dict]
+    """Details of successful injection attacks, including injection_task_id, user_task_id, 
+    malicious_tool_name, and malicious_tool_docstring"""
 
 
 def aggregate_results(results: list[dict[tuple[str, str], bool]]) -> float:
@@ -47,7 +53,7 @@ def run_task_with_injection_tasks(
     force_rerun: bool,
     injection_tasks: Sequence[str] | None = None,
     benchmark_version: str | None = None,
-) -> tuple[dict[tuple[str, str], bool], dict[tuple[str, str], bool]]:
+) -> tuple[dict[tuple[str, str], bool], dict[tuple[str, str], bool]] | None:
     """Runs the given user task with the given injection tasks (or all tasks if no injection
     task is provided) by injecting the environment by using the given attack.
 
@@ -67,6 +73,7 @@ def run_task_with_injection_tasks(
             injection and user task couple.
 
     """
+    global processed_count, utility_true_count, security_true_count
     utility_results: dict[tuple[str, str], bool] = {}
     security_results: dict[tuple[str, str], bool] = {}
 
@@ -78,12 +85,108 @@ def run_task_with_injection_tasks(
 
     if injection_tasks is not None and not attack.is_dos_attack:
         injection_tasks_to_run = injection_tasks
+    
+    tools_to_use = suite.tools_attack_mode if attack.name == "tool_attack" else suite.tools
 
-    for injection_task_id in injection_tasks_to_run:
+    if attack.name == "tool_attack":
+        # Get attack_vector_type from attack object (set by ToolAttack.__init__)
+        attack_vector_type = getattr(attack, "attack_vector_type", None)
+        attack_type_filter = getattr(attack, "attack_type", None)
+        
+        # Combined filtering: support both attack_type and attack_vector_type simultaneously
+        if attack_type_filter is not None or attack_vector_type is not None:
+            filtered_tasks: list[str] = []
+            # Ensure we get the keys from the dict
+            if isinstance(injection_tasks_to_run, dict):
+                base_iterable = injection_tasks_to_run.keys()
+            else:
+                base_iterable = injection_tasks_to_run if injection_tasks_to_run is not None else suite.injection_tasks.keys()
+            
+            for tid in base_iterable:
+                try:
+                    inj_task = suite.get_injection_task_by_id(tid)
+                    
+                    # Check ATTACK_TYPE if specified
+                    if attack_type_filter is not None:
+                        task_attack_type = getattr(inj_task, "ATTACK_TYPE", None) or getattr(inj_task.__class__, "ATTACK_TYPE", None)
+                        if task_attack_type != attack_type_filter:
+                            continue  # Skip if ATTACK_TYPE doesn't match
+                    
+                    # Check ATTACK_VECTOR if specified
+                    if attack_vector_type is not None:
+                        task_attack_vector = getattr(inj_task, "ATTACK_VECTOR", None) or getattr(inj_task.__class__, "ATTACK_VECTOR", None)
+                        if task_attack_vector != attack_vector_type:
+                            continue  # Skip if ATTACK_VECTOR doesn't match
+                    
+                    # Both conditions passed (or weren't specified)
+                    filtered_tasks.append(tid)
+                except Exception as e:
+                    logging.debug(f"Error filtering task {tid}: {e}")
+                    continue
+            
+            if filtered_tasks:
+                injection_tasks_to_run = filtered_tasks
+                filter_desc = []
+                if attack_vector_type:
+                    filter_desc.append(f"attack_vector='{attack_vector_type}'")
+                if attack_type_filter:
+                    filter_desc.append(f"attack_type='{attack_type_filter}'")
+                logging.info(f"Filtered to {len(filtered_tasks)} injection tasks matching {' and '.join(filter_desc)}")
+            else:
+                filter_desc = []
+                if attack_vector_type:
+                    filter_desc.append(f"attack_vector='{attack_vector_type}'")
+                if attack_type_filter:
+                    filter_desc.append(f"attack_type='{attack_type_filter}'")
+                logging.warning(f"No injection tasks found matching {' and '.join(filter_desc)}")
+        else:
+            # No attack_type or attack_vector_type filter specified - fall back to shadow tasks filtering
+            try:
+                # Only execute shadow injection tasks (module contains 'injection_tasks_shadow'),
+                # but respect any user-provided subset.
+                shadow_tasks: list[str] = []
+                # Ensure we get the keys from the dict
+                if isinstance(injection_tasks_to_run, dict):
+                    base_iterable = injection_tasks_to_run.keys()
+                else:
+                    base_iterable = injection_tasks_to_run if injection_tasks_to_run is not None else suite.injection_tasks.keys()
+                
+                for tid in base_iterable:
+                    try:
+                        inj_task = suite.get_injection_task_by_id(tid)
+                        if "injection_tasks_shadow" in inj_task.__class__.__module__:
+                            shadow_tasks.append(tid)
+                    except Exception:
+                        continue
+                if shadow_tasks:
+                    injection_tasks_to_run = shadow_tasks
+            except Exception:
+                ...
+
+    injection_task_ids = list(injection_tasks_to_run)
+    total_injection_tasks = len(injection_task_ids)
+
+    for idx, injection_task_id in enumerate(injection_task_ids, 1):
         injection_task = suite.get_injection_task_by_id(injection_task_id)
         task_injections = attack.attack(user_task, injection_task)
 
+        # Always log initial GOAL/malicious tool (first entry) before running
+        goal_pre = getattr(injection_task, "GOAL", None)
+        malicious_pre: tuple[str, str] | None = None
+        try:
+            malicious_list = [m for m in getattr(injection_task, "MALICIOUS_TOOLS", []) if isinstance(m, dict)]
+            malicious_names = [malicious_list[0].get("name")] if malicious_list else []
+            for fn in tools_to_use:
+                if fn.name in malicious_names:
+                    doc = fn.full_docstring or fn.description or ""
+                    if goal_pre is not None and "{injection_vector}" in doc:
+                        doc = doc.replace("{injection_vector}", str(goal_pre))
+                    malicious_pre = (fn.name, doc)
+                    break
+        except Exception:
+            malicious_pre = None
         if logdir is not None and agent_pipeline.name is not None:
+            # 在这里注册恶意tool的injection vector
             try:
                 task_result = load_task_results(
                     agent_pipeline.name,
@@ -101,6 +204,7 @@ def run_task_with_injection_tasks(
         if task_result is not None and not force_rerun:
             logging.info(f"Skipping task '{user_task.ID}' with '{injection_task.ID}' because it was already run.")
             utility, security = task_result.utility, task_result.security
+            logger = None  # No logger since we're skipping
         else:
             # a trace logger captures logs and saves them, but also passes them to the delegate logger
             with TraceLogger(
@@ -109,14 +213,25 @@ def run_task_with_injection_tasks(
                 user_task_id=user_task.ID,
                 injection_task_id=injection_task_id,
                 injections=task_injections,
-                attack_type=attack.name,
+                attack_type=getattr(attack, "attack_type", None) or attack.name,
                 pipeline_name=agent_pipeline.name,
                 benchmark_version=benchmark_version,
             ) as logger:
                 try:
-                    utility, security = suite.run_task_with_pipeline(
-                        agent_pipeline, user_task, injection_task, task_injections
+                    result = suite.run_task_with_pipeline(
+                        agent_pipeline,
+                        user_task,
+                        injection_task,
+                        task_injections,
+                        tools=tools_to_use,
+                        attack_vector_type=getattr(attack, "attack_vector_type", None),
                     )
+                    if result is None or result == (None, None):
+                        # Not applicable; mark as such and continue to logging
+                        utility, security = None, None
+                        continue
+                    else:
+                        utility, security = result
                 except BadRequestError as e:
                     if (
                         e.code == "context_length_exceeded"
@@ -149,11 +264,78 @@ def run_task_with_injection_tasks(
                 if attack.is_dos_attack:
                     security = not utility
 
-            logger.set_contextarg("utility", utility)
-            logger.set_contextarg("security", security)
+                logger.set_contextarg("utility", utility)
+                logger.set_contextarg("security", security)
+                
+                # Extract and record malicious tool info for successful attacks
+                try:
+                    # 按当前语义：security == True 表示攻击成功（防御失败）；security == False 表示攻击失败（防御成功）
+                    attack_succeeded = security is True
+                    goal = getattr(injection_task, "GOAL", None)
+                    malicious_tool_name = None
+                    malicious_tool_docstring = None
+                    
+                    malicious_list = [
+                        m for m in getattr(injection_task, "MALICIOUS_TOOLS", []) if isinstance(m, dict)
+                    ]
+                    malicious_names = [malicious_list[0].get("name")] if malicious_list else []
+                    for fn in tools_to_use:
+                        if fn.name in malicious_names:
+                            doc = fn.full_docstring or fn.description or ""
+                            if goal is not None and "{injection_vector}" in doc:
+                                doc = doc.replace("{injection_vector}", str(goal))
+                            malicious_tool_name = fn.name
+                            malicious_tool_docstring = doc
+                            break
+                    
+                    # Record malicious tool info in logger for successful attacks
+                    if attack_succeeded and malicious_tool_name:
+                        logger.set_contextarg("malicious_tool_name", malicious_tool_name)
+                        logger.set_contextarg("malicious_tool_docstring", malicious_tool_docstring)
+                except Exception:
+                    pass  # Don't crash on malicious tool extraction errors
 
-        utility_results[(user_task.ID, injection_task_id)] = utility
-        security_results[(user_task.ID, injection_task_id)] = security
+        try:
+            # 按当前语义：security == True 表示攻击成功（防御失败）；security == False 表示攻击失败（防御成功）
+            attack_succeeded = security is True
+            goal = getattr(injection_task, "GOAL", None)
+            malicious_tool_entry = None
+            try:
+                malicious_list = [
+                    m for m in getattr(injection_task, "MALICIOUS_TOOLS", []) if isinstance(m, dict)
+                ]
+                malicious_names = [malicious_list[0].get("name")] if malicious_list else []
+                for fn in tools_to_use:
+                    if fn.name in malicious_names:
+                        doc = fn.full_docstring or fn.description or ""
+                        if goal is not None and "{injection_vector}" in doc:
+                            doc = doc.replace("{injection_vector}", str(goal))
+                        malicious_tool_entry = (fn.name, doc)
+                        break
+            except Exception:
+                malicious_tool_entry = getattr(injection_task, "MALICIOUS_TOOLS", None)
+
+            processed_count += 1
+            if utility is True:
+                utility_true_count += 1
+            if security is True:
+                security_true_count += 1
+            util_ratio = utility_true_count / processed_count if processed_count else 0.0
+            sec_ratio = security_true_count / processed_count if processed_count else 0.0
+
+            logging.info(
+                f"malicious_tool={malicious_tool_entry!r}\n"
+                f"[injection result] utility={utility}\tsecurity={security}\tattack_succeeded={attack_succeeded}\n"
+                f"utility_true_count=({utility_true_count}/{processed_count}={util_ratio})\tsecurity_true_ratio=({security_true_count}/{processed_count}={sec_ratio})"
+                f"({idx}/{total_injection_tasks})"
+            )
+        except Exception:
+            # Logging should never crash benchmark execution.
+            ...
+        if utility is not None:
+            utility_results[(user_task.ID, injection_task_id)] = utility
+        if security is not None:
+            security_results[(user_task.ID, injection_task_id)] = security
     return utility_results, security_results
 
 
@@ -198,18 +380,22 @@ def benchmark_suite_with_injections(
         injection_tasks_to_run = suite.injection_tasks
 
     injection_tasks_utility_results = {}
-    if not attack.is_dos_attack:
-        for injection_task_id, injection_task in injection_tasks_to_run.items():
-            successful, _ = run_task_without_injection_tasks(
-                suite, agent_pipeline, injection_task, logdir, force_rerun, benchmark_version
-            )
-            injection_tasks_utility_results[injection_task_id] = successful
-
-        if not all(injection_tasks_utility_results.values()):
-            warnings.warn("Not all injection tasks were solved as user tasks.")
+    successful_injection_details = []
+    # if not attack.is_dos_attack:
+    #     tools_to_use = suite.tools
+    #     for injection_task_id, injection_task in injection_tasks_to_run.items():
+    #         successful, _ = run_task_without_injection_tasks(
+    #             suite, agent_pipeline, injection_task, logdir, force_rerun, tools=tools_to_use
+    #         )
+    #         injection_tasks_utility_results[injection_task_id] = successful
+        
+    #     # 先保证所有的injection task都可以被解决，保证攻击成功
+    #     if not all(injection_tasks_utility_results.values()):
+    #         warnings.warn("Not all injection tasks were solved as user tasks.")
+    tools_to_use = suite.tools_attack_mode if attack.name == "tool_attack" else suite.tools
 
     for user_task in user_tasks_to_run:
-        utility, security = run_task_with_injection_tasks(
+        result = run_task_with_injection_tasks(
             suite,
             agent_pipeline,
             user_task,
@@ -219,13 +405,55 @@ def benchmark_suite_with_injections(
             injection_tasks,
             benchmark_version,
         )
+        if result is None:
+            continue
+        utility, security = result
         suite_utility_results.update(utility)
         suite_security_results.update(security)
+
+    # Collect successful injection details from saved logs
+    if logdir is not None and agent_pipeline.name is not None:
+        for (user_task_id, injection_task_id), security_result in suite_security_results.items():
+            if security_result is True:  # Attack succeeded (defense failed)
+                try:
+                    task_result = load_task_results(
+                        agent_pipeline.name,
+                        suite.name,
+                        user_task_id,
+                        attack_name=getattr(attack, "attack_type", None) or attack.name,
+                        injection_task=injection_task_id,
+                        logdir=logdir,
+                    )
+                    malicious_tool_name = getattr(task_result, "malicious_tool_name", None)
+                    malicious_tool_docstring = getattr(task_result, "malicious_tool_docstring", None)
+                    if malicious_tool_name:
+                        successful_injection_details.append({
+                            "injection_task_id": injection_task_id,
+                            "user_task_id": user_task_id,
+                            "malicious_tool_name": malicious_tool_name,
+                            "malicious_tool_docstring": malicious_tool_docstring,
+                        })
+                except Exception as e:
+                    logging.debug(f"Failed to load malicious tool info for {user_task_id}/{injection_task_id}: {e}")
+
+    # Log summary of successful injections
+    if successful_injection_details:
+        logging.info(f"\n{'='*80}")
+        logging.info(f"SUCCESSFUL INJECTION ATTACKS SUMMARY ({len(successful_injection_details)} total):")
+        logging.info(f"{'='*80}")
+        for detail in successful_injection_details:
+            logging.info(
+                f"  - InjectionTask: {detail['injection_task_id']}\n"
+                f"    UserTask: {detail['user_task_id']}\n"
+                f"    MaliciousTool: {detail['malicious_tool_name']}\n"
+            )
+        logging.info(f"{'='*80}\n")
 
     return SuiteResults(
         utility_results=suite_utility_results,
         security_results=suite_security_results,
         injection_tasks_utility_results=injection_tasks_utility_results,
+        successful_injection_details=successful_injection_details,
     )
 
 
@@ -236,7 +464,8 @@ def run_task_without_injection_tasks(
     logdir: Path | None,
     force_rerun: bool,
     benchmark_version: str | None = None,
-) -> tuple[bool, bool]:
+    tools: Sequence[Function] | None = None,
+    ) -> tuple[bool, bool] | None:
     """Run a task without injections. Useful to benchmark the utility of a pipeline.
 
     Args:
@@ -245,7 +474,8 @@ def run_task_without_injection_tasks(
         task: The task to run.
         logdir: The directory to save logs to.
         force_rerun: Whether to force rerun the task in case in the logdir there already exists
-            a log for the task.
+            a log for the task
+        tools: Optional set of tools to expose to the runtime. Defaults to the suite tools.
 
     Returns:
         A tuple with the utility and security of the task. The security is always True.
@@ -279,8 +509,22 @@ def run_task_without_injection_tasks(
         pipeline_name=agent_pipeline.name,
         benchmark_version=benchmark_version,
     ) as logger:
+        utility: bool = False
+        security: bool = True
         try:
-            utility, security = suite.run_task_with_pipeline(agent_pipeline, task, injection_task=None, injections={})
+            result = suite.run_task_with_pipeline(
+                agent_pipeline,
+                task,
+                injection_task=None,
+                injections={},
+                tools=tools,
+                attack_vector_type=None,
+            )
+            if result is None or result == (None, None):
+                return None
+            utility_val, security_val = result
+            utility = bool(utility_val)
+            security = bool(security_val)
         except BadRequestError as e:
             if (
                 e.code == "context_length_exceeded"
@@ -345,9 +589,12 @@ def benchmark_suite_without_injections(
         user_tasks_to_run = suite.user_tasks.values()
 
     for user_task in user_tasks_to_run:
-        utility, security = run_task_without_injection_tasks(
+        result = run_task_without_injection_tasks(
             suite, agent_pipeline, user_task, logdir, force_rerun, benchmark_version
         )
+        if result is None:
+            continue
+        utility, security = result
         suite_utility_results[(user_task.ID, "")] = utility
         suite_security_results[(user_task.ID, "")] = security
 
@@ -355,6 +602,7 @@ def benchmark_suite_without_injections(
         utility_results=suite_utility_results,
         security_results=suite_security_results,
         injection_tasks_utility_results={},
+        successful_injection_details=[],
     )
 
 
@@ -372,6 +620,8 @@ class TaskResults(BaseModel):
     utility: bool
     security: bool
     duration: float
+    malicious_tool_name: str | None = None
+    malicious_tool_docstring: str | None = None
 
     @model_validator(mode="after")
     def check_messages(self) -> Self:

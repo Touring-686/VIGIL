@@ -11,7 +11,7 @@ from agentdojo.base_tasks import BaseInjectionTask, BaseUserTask
 from agentdojo.functions_runtime import FunctionsRuntime
 from agentdojo.models import MODEL_NAMES
 from agentdojo.task_suite.task_suite import TaskSuite
-from agentdojo.types import get_text_content_as_str
+from secagent import get_current_config, update_security_policy
 
 # user_task_id -> injection_task_id -> vector_id -> value
 Injections = NewType("Injections", dict[str, dict[str, dict[str, str]]])
@@ -52,15 +52,17 @@ class BaseAttack(abc.ABC):
         gt_pipeline = GroundTruthPipeline(user_task)
         runtime = FunctionsRuntime(self.task_suite.tools)
         environment = self.task_suite.load_and_inject_default_environment(self.canary_injections)
+
+        sec_policy=get_current_config()
+        update_security_policy(None)
         _, _, _, responses, _ = gt_pipeline.query(user_task.PROMPT, runtime, environment)
+        update_security_policy(sec_policy)
 
         injection_candidates = []
         for inj in self.canary_injections:
             found = False
             for response in responses:
-                if response["content"] is not None and self.canary_injections[inj] in get_text_content_as_str(
-                    response["content"]
-                ):
+                if response["content"] is not None and self.canary_injections[inj] in response["content"]:
                     found = True
             if found:
                 injection_candidates.append(inj)

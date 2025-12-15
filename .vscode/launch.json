@@ -1,0 +1,253 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Travel | type_i_a",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "intent_hijecking",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_i_b | Prerequisite",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "prerequisite_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/type_i_b_prerequisite"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_i_b | Postaction",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "postaction_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/type_i_b_postaction"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_ii_a",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_a",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/debug_run"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_ii_b",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_b",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_iii_a | SOP Injection",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_injection",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/type_iii_a_sop_injection"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_iii_a | SOP Exfiltration",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_exfiltration",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/type_iii_a_sop_exfiltration"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_i_a | parameter_override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/parameter_override_multitools"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Test Type I-B Injection Tasks",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/test_type_i_b_injection_tasks.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": false
+    },
+  ]
+}

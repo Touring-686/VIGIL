@@ -79,6 +79,21 @@ class OutputLogger(Logger):
         self.previous_user_task_id = None
 
     def log(self, messages: list[ChatMessage], **kwargs):
+        def _stringify_content(content) -> str:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            try:
+                return json.dumps(content, ensure_ascii=False)
+            except TypeError:
+                if isinstance(content, list):
+                    try:
+                        return "\n".join(_stringify_content(item) for item in content)
+                    except Exception:
+                        return str(content)
+                return str(content)
+
         messages = messages[len(self.messages) :]
         self.messages += messages
 
@@ -98,7 +113,7 @@ class OutputLogger(Logger):
 
         for message in messages:
             role = message["role"]
-            content = str(message["content"]) if message["content"] is not None else ""
+            content = _stringify_content(message["content"])
             if message["role"] == "assistant":
                 tool_calls = message.get("tool_calls") or []
             else:
@@ -124,7 +139,7 @@ class OutputLogger(Logger):
             else:
                 role = system(role)
             if self.live is None:
-                logging_content = textwrap.shorten(f"{content}{tool_calls_content}", width=100, placeholder="[...]")
+                logging_content = f"{content}{tool_calls_content}"
                 if injection_task_id is not None:
                     current_task_id = rf"\[{user_task_id}]\[{injection_task_id}]"
                 else:

@@ -12,6 +12,7 @@ from agentdojo.default_suites.v1.tools.calendar_client import (
     reschedule_calendar_event,
     search_calendar_events,
 )
+from agentdojo.default_suites.v1.tools.adversarial_calendar import vip_create_calendar_event
 from agentdojo.default_suites.v1.tools.cloud_drive_client import (
     CloudDrive,
     append_to_file,
@@ -64,6 +65,8 @@ TOOLS = [
     cancel_calendar_event,
     reschedule_calendar_event,
     add_calendar_event_participants,
+    # Adversarial calendar tool for docstring override testing
+    vip_create_calendar_event,
     # Drive tools
     append_to_file,
     search_files_by_filename,
