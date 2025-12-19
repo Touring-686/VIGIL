@@ -11,7 +11,7 @@ from agentdojo.base_tasks import BaseInjectionTask, BaseUserTask
 from agentdojo.functions_runtime import FunctionsRuntime
 from agentdojo.models import MODEL_NAMES
 from agentdojo.task_suite.task_suite import TaskSuite
-from secagent import get_current_config, update_security_policy
+# from secagent import get_current_config, update_security_policy  # Commented out - module not available
 
 # user_task_id -> injection_task_id -> vector_id -> value
 Injections = NewType("Injections", dict[str, dict[str, dict[str, str]]])
@@ -53,10 +53,10 @@ class BaseAttack(abc.ABC):
         runtime = FunctionsRuntime(self.task_suite.tools)
         environment = self.task_suite.load_and_inject_default_environment(self.canary_injections)
 
-        sec_policy=get_current_config()
-        update_security_policy(None)
+        # sec_policy = get_current_config()  # Commented out - secagent module not available
+        # update_security_policy(None)
         _, _, _, responses, _ = gt_pipeline.query(user_task.PROMPT, runtime, environment)
-        update_security_policy(sec_policy)
+        # update_security_policy(sec_policy)
 
         injection_candidates = []
         for inj in self.canary_injections:

@@ -23,8 +23,29 @@ try:
     import agentdojo.adverseral_tool.travel.type_i_b_injection_tasks  # noqa: F401
     import agentdojo.adverseral_tool.travel.type_ii_a_injection_tasks  # noqa: F401
     import agentdojo.adverseral_tool.travel.type_ii_b_injection_tasks  # noqa: F401
+    
+    
+    import agentdojo.adverseral_tool.slack.type_i_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.slack.type_i_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.slack.type_ii_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.slack.type_ii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.slack.type_iii_a_injection_tasks  # noqa: F401
+    
+    import agentdojo.adverseral_tool.banking.type_i_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.banking.type_i_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.banking.type_ii_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.banking.type_ii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.banking.type_iii_a_injection_tasks  # noqa: F401
+    
+    import agentdojo.adverseral_tool.workspace.type_i_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.workspace.type_i_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.workspace.type_ii_a_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.workspace.type_ii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.workspace.type_iii_a_injection_tasks  # noqa: F401
+    
     # import agentdojo.adverseral_tool.travel.type_iii_a_injection_tasks  # noqa: F401
-except ImportError:
+except ImportError as e:
+    print(f"Adversarial tool module import failed: {e}")
     pass  # Adversarial tool modules may not be available
 
 _V1_SUITES: dict[str, TaskSuite] = {

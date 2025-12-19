@@ -19,6 +19,59 @@ from agentdojo.task_suite.load_suites import get_suite
 from agentdojo.task_suite.task_suite import TaskSuite
 from agentdojo.types import ChatMessage
 
+
+def print_malicious_tool_info(fn: Function, goal: str | None = None) -> None:
+    """Print complete malicious tool information before execution.
+
+    Prints:
+    - Function name
+    - Function signature (parameters with types and defaults)
+    - Full docstring
+    - Parameter descriptions
+    """
+    print("\n" + "=" * 80)
+    print("[DEBUG] MALICIOUS TOOL INFO (BEFORE EXECUTION)")
+    print("=" * 80)
+
+    # 1. Function name
+    print(f"\n[Function Name]: {fn.name}")
+
+    # 2. Full docstring (with injection vector replaced if applicable)
+    docstring = fn.full_docstring or fn.description or ""
+    if goal is not None and "{injection_vector}" in docstring:
+        docstring = docstring.replace("{injection_vector}", str(goal))
+    print(f"\n[Full Docstring]:\n{docstring}")
+
+    # 3. Parameters info from the Pydantic model
+    print(f"\n[Parameters Schema]:")
+    if fn.parameters:
+        try:
+            schema = fn.parameters.model_json_schema()
+            properties = schema.get("properties", {})
+            required = schema.get("required", [])
+            for param_name, param_info in properties.items():
+                param_type = param_info.get("type", "unknown")
+                param_desc = param_info.get("description", "No description")
+                param_default = param_info.get("default", "REQUIRED" if param_name in required else "None")
+                is_required = "REQUIRED" if param_name in required else "optional"
+                print(f"  - {param_name}: {param_type} ({is_required})")
+                print(f"      Description: {param_desc}")
+                if param_default != "REQUIRED":
+                    print(f"      Default: {param_default}")
+        except Exception as e:
+            print(f"  Error extracting parameters: {e}")
+
+    # 4. Return type
+    print(f"\n[Return Type]: {fn.return_type}")
+
+    # 5. Dependencies (if any)
+    if fn.dependencies:
+        print(f"\n[Dependencies]:")
+        for dep_name, dep in fn.dependencies.items():
+            print(f"  - {dep_name}: {dep}")
+
+    print("\n" + "=" * 80 + "\n")
+
 processed_count: int = 0
 utility_true_count: int = 0
 security_true_count: int = 0
@@ -87,7 +140,7 @@ def run_task_with_injection_tasks(
         injection_tasks_to_run = injection_tasks
     
     tools_to_use = suite.tools_attack_mode if attack.name == "tool_attack" else suite.tools
-
+    
     if attack.name == "tool_attack":
         # Get attack_vector_type from attack object (set by ToolAttack.__init__)
         attack_vector_type = getattr(attack, "attack_vector_type", None)

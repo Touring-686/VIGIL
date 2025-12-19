@@ -689,6 +689,14 @@ class TaskSuite(Generic[Env]):
         """
         # Check if injection task has SOURCE_USER_TASK_ID and whether it matches current user_task
         # This applies to multiple attack types including parameter_override and short_circuit_reasoning
+        if getattr(injection_task, "ATTACK_TYPE", None) == "sop_exfiltration" and self.name == 'slack':
+            source_user_task_id_list = getattr(injection_task, "TARGET_USER_TASKS", None)
+            user_task_id = getattr(user_task, "ID", None)
+            if user_task_id and source_user_task_id_list:
+                if int(user_task_id.split('_')[-1]) not in source_user_task_id_list:
+                # Skip mismatched injection/user task pairs
+                    return None, None
+            
         source_user_task_id = getattr(injection_task, "SOURCE_USER_TASK_ID", None) or getattr(injection_task, "SOURCE_USER_TASK", None)
         if source_user_task_id is not None:
             user_task_id = getattr(user_task, "ID", None)
@@ -699,6 +707,7 @@ class TaskSuite(Generic[Env]):
         # If no environment is provided, load the default environment
         if getattr(injection_task, "ATTACK_TYPE", None) == "parameter_override":
             environment = self.load_and_inject_default_environment(injections)
+        
         if environment is None:
             environment = self.load_and_inject_default_environment(injections)
         # Initialize the environment according to the task

@@ -2,7 +2,481 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Travel | type_i_a",
+      "name": "Slack | type_i_a | Intent Hijacking",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "explicit_directive",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_i_a_intent"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_i_a | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_i_a_param"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_i_b | post Dependency",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type", "postaction_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_i_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_i_b | pre Dependency",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type", "prerequisite_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_i_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_ii_a | Reasoning Shortcircuit",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_a",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_ii_a"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_ii_b | Induced Parameter",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_b",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_ii_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_iii_a | SOP exfiltration",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_exfiltration",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_iii_a_sop"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_iii_a | Memory Poisoning",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "memory_poisoning",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_iii_a_memory"
+      ],
+      "console": "integratedTerminal"
+    },
+// --------------------------------------- Workspace suite Configurations --------------------------------------- //
+
+{
+      "name": "Workspace | type_i_a | Intent Hijacking",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "Workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "explicit_directive",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/slack/type_i_a_intent"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_i_a | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_i_a_param"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_i_b | prerequisite Dependency",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "prerequisite_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_i_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_i_b | Procedural Dependency",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "postaction_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_i_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_ii_a | Reasoning Shortcircuit",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_a",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_ii_a"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_ii_b | Induced Parameter",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_b",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_ii_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_iii_a | SOP Injection",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_exfiltration",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_iii_a_sop"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_iii_a | Memory Poisoning",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "memory_poisoning",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_iii_a_memory"
+      ],
+      "console": "integratedTerminal"
+    },
+  
+// --------------------------------------- Travel Suite Configurations --------------------------------------- //
+    {
+      "name": "Travel | type_i_a | parameter override",
       "type": "debugpy",
       "request": "launch",
       "module": "agentdojo.scripts.benchmark",
@@ -20,7 +494,8 @@
         "--attack-vector-type",
         "type_i_a",
         "--attack-type",
-        "intent_hijecking",
+        "parameter_override",
+        "--defense","melon",
         "--model",
         "QWEN3_MAX",
         "--max-workers",
@@ -208,7 +683,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "Travel | type_i_a | parameter_override",
+      "name": "Banking | type_i_a | parameter_override",
       "type": "debugpy",
       "request": "launch",
       "module": "agentdojo.scripts.benchmark",
@@ -218,7 +693,7 @@
       },
       "args": [
         "--suite",
-        "travel",
+        "banking",
         "--benchmark-version",
         "adversarial",
         "--attack",
@@ -248,6 +723,243 @@
         "PYTHONPATH": "${workspaceFolder}/src"
       },
       "justMyCode": false
+    },
+
+    {
+      "name": "banking | type_i_a",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "parameter_override",
+        "--defense","melon",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_i_b | Prerequisite",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "prerequisite_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/type_i_b_prerequisite"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_i_b | Postaction",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_b",
+        "--attack-type",
+        "postaction_dependency",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/type_i_b_postaction"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_ii_a",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_a",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+         "${workspaceFolder}/runs/banking/type_ii_a"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_ii_b",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_ii_b",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/type_ii_b"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_iii_a | SOP Injection",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_injection",
+        "--model",
+        "QWEN3_MAX",
+        "--defense","melon",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/type_iii_a_sop_injection"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_iii_a | SOP Exfiltration",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_a",
+        "--attack-type",
+        "sop_exfiltration",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/type_iii_a_sop_exfiltration"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "banking | type_i_a | parameter_override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_i_a",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/parameter_override_multitools"
+      ],
+      "console": "integratedTerminal"
     },
   ]
 }

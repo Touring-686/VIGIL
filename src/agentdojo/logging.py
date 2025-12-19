@@ -34,7 +34,11 @@ class Logger:
 
 
 class NullLogger(Logger):
-    messages: list[ChatMessage]
+    """A no-op logger that discards all log messages."""
+
+    def __init__(self):
+        self.messages: list[ChatMessage] = []
+        self.logdir: str | None = None
 
     def __enter__(self):
         self.messages = []

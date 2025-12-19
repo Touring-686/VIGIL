@@ -23,7 +23,7 @@ from agentdojo.agent_pipeline.llms.google_llm import GoogleLLM
 from agentdojo.agent_pipeline.llms.local_llm import LocalLLM
 from agentdojo.agent_pipeline.llms.openai_llm import OpenAILLM, OpenAILLMToolFilter
 from agentdojo.agent_pipeline.llms.prompting_llm import PromptingLLM
-from agentdojo.agent_pipeline.pi_detector import TransformersBasedPIDetector
+from agentdojo.agent_pipeline.pi_detector import TransformersBasedPIDetector, MELON
 from agentdojo.agent_pipeline.tool_execution import (
     ToolsExecutionLoop,
     ToolsExecutor,
@@ -33,6 +33,7 @@ from agentdojo.functions_runtime import EmptyEnv, Env, FunctionsRuntime
 from agentdojo.logging import Logger
 from agentdojo.models import MODEL_PROVIDERS, ModelsEnum
 from agentdojo.types import ChatMessage
+
 
 TOOL_FILTER_PROMPT = (
     "Your task is to filter the list of tools to only include those that are relevant to the user's task."
@@ -45,6 +46,7 @@ DEFENSES = [
     "transformers_pi_detector",
     "spotlighting_with_delimiting",
     "repeat_user_prompt",
+    "melon",
 ]
 """Available defenses."""
 
@@ -259,6 +261,19 @@ class AgentPipeline(BasePipelineElement):
             )
             delimited_tool_output_formatter = lambda result: f"<<{tool_output_formatter(result)}>>"
             tools_loop = ToolsExecutionLoop([ToolsExecutor(tool_output_formatter=delimited_tool_output_formatter), llm])
+            pipeline = cls([system_message_component, init_query_component, llm, tools_loop])
+            pipeline.name = f"{llm_name}-{config.defense}"
+            return pipeline
+        if config.defense == "melon":
+            tools_loop = ToolsExecutionLoop(
+                [
+                    ToolsExecutor(tool_output_formatter),
+                    MELON(
+                        llm,
+                        threshold=0.1,
+                    ),
+                ]
+            )
             pipeline = cls([system_message_component, init_query_component, llm, tools_loop])
             pipeline.name = f"{llm_name}-{config.defense}"
             return pipeline

@@ -18,6 +18,73 @@ from agentdojo.default_suites.v1.workspace.task_suite import TOOLS, WorkspaceEnv
 from agentdojo.functions_runtime import FunctionCall
 
 
+def _parse_function_args(args_str: str) -> dict[str, Any]:
+    """Parse function arguments in the form 'key1=value1, key2=value2'."""
+    import re
+    
+    args = {}
+    # Use regex to split by commas that are not inside brackets or quotes
+    # This is a simplified parser - for complex cases we'd need a proper parser
+    parts = []
+    current = []
+    depth = 0
+    in_quotes = False
+    quote_char = None
+    
+    for char in args_str + ',':
+        if char in ('"', "'") and (not current or current[-1] != '\\'):
+            if not in_quotes:
+                in_quotes = True
+                quote_char = char
+            elif char == quote_char:
+                in_quotes = False
+                quote_char = None
+        elif char in ('[', '{') and not in_quotes:
+            depth += 1
+        elif char in (']', '}') and not in_quotes:
+            depth -= 1
+        elif char == ',' and depth == 0 and not in_quotes:
+            parts.append(''.join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    
+    for part in parts:
+        if not part:
+            continue
+        # Find the first = that's not inside quotes or brackets
+        eq_pos = -1
+        depth = 0
+        in_quotes = False
+        quote_char = None
+        for i, char in enumerate(part):
+            if char in ('"', "'") and (i == 0 or part[i-1] != '\\'):
+                if not in_quotes:
+                    in_quotes = True
+                    quote_char = char
+                elif char == quote_char:
+                    in_quotes = False
+                    quote_char = None
+            elif char in ('[', '{') and not in_quotes:
+                depth += 1
+            elif char in (']', '}') and not in_quotes:
+                depth -= 1
+            elif char == '=' and depth == 0 and not in_quotes:
+                eq_pos = i
+                break
+        
+        if eq_pos > 0:
+            key = part[:eq_pos].strip()
+            value_str = part[eq_pos + 1:].strip()
+            try:
+                args[key] = ast.literal_eval(value_str)
+            except (ValueError, SyntaxError):
+                # If literal_eval fails, keep as string
+                args[key] = value_str
+    
+    return args
+
+
 def _parse_suite_data(suite_name: str) -> tuple[dict[str, str], list[tuple[str, str, dict[str, Any]]]]:
     repo_root = Path(__file__).resolve().parents[4]
     txt_path = repo_root / "all_tasks_with_tools.txt"
@@ -64,7 +131,15 @@ def _parse_suite_data(suite_name: str) -> tuple[dict[str, str], list[tuple[str, 
             func_name = call[: call.find("(")]
             args_str = call[call.find("(") + 1 : call.rfind(")")]
             if args_str.strip():
-                args = ast.literal_eval(f"dict({args_str})")
+                # Convert function call syntax (key=value) to dict literal ({key: value})
+                # Replace = with : but be careful not to replace = inside strings or lists
+                dict_str = "{" + args_str.replace("=", ":") + "}"
+                try:
+                    args = ast.literal_eval(dict_str)
+                except (ValueError, SyntaxError):
+                    # If simple replacement fails, fall back to parsing manually
+                    # This handles cases where = appears in values
+                    args = _parse_function_args(args_str)
             else:
                 args = {}
             mappings.append((current_task or "unknown_task", func_name, args))
