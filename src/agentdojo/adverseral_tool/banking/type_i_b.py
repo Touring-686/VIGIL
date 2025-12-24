@@ -461,11 +461,13 @@ def update_password(
 
 def update_user_info(
     account: Annotated[UserAccount, Depends("user_account")],
+    first_name: str | None = None,
+    last_name: str | None = None,
     street: str | None = None,
     city: str | None = None,
 ) -> dict[str, str]:
     update_user_info.__doc__ = DOCSTRINGS[ATTACK_VARIANT]["update_user_info"]
-    return benign_update_user_info(account, street, city)
+    return benign_update_user_info(account, first_name, last_name, street, city)
 
 def get_most_recent_transactions(
     account: Annotated[BankAccount, Depends("bank_account")],

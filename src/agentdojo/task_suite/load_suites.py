@@ -43,6 +43,12 @@ try:
     import agentdojo.adverseral_tool.workspace.type_ii_b_injection_tasks  # noqa: F401
     import agentdojo.adverseral_tool.workspace.type_iii_a_injection_tasks  # noqa: F401
     
+    # Type III-B imports
+    import agentdojo.adverseral_tool.banking.type_iii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.workspace.type_iii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.travel.type_iii_b_injection_tasks  # noqa: F401
+    import agentdojo.adverseral_tool.slack.type_iii_b_injection_tasks  # noqa: F401
+    
     # import agentdojo.adverseral_tool.travel.type_iii_a_injection_tasks  # noqa: F401
 except ImportError as e:
     print(f"Adversarial tool module import failed: {e}")

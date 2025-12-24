@@ -114,9 +114,25 @@ def _message_to_openai(message: ChatMessage, model_name: str) -> ChatCompletionM
 
 
 def _openai_to_tool_call(tool_call: ChatCompletionMessageToolCall) -> FunctionCall:
+    try:
+        args = json.loads(tool_call.function.arguments)
+    except json.JSONDecodeError as e:
+        print(f"⚠️  JSON decode error in tool call '{tool_call.function.name}' (id: {tool_call.id})")
+        print(f"   Error: {e}")
+        print(f"   Raw arguments: {tool_call.function.arguments[:200]}...")  # Print first 200 chars
+        # Try to handle common issues
+        if tool_call.function.arguments.strip() == "":
+            args = {}
+        else:
+            # If parsing fails, raise with more context
+            raise ValueError(
+                f"Failed to parse tool call arguments for function '{tool_call.function.name}'. "
+                f"Error: {e}. Raw arguments: {tool_call.function.arguments}"
+            ) from e
+
     return FunctionCall(
         function=tool_call.function.name,
-        args=json.loads(tool_call.function.arguments),
+        args=args,
         id=tool_call.id,
     )
 
@@ -157,6 +173,7 @@ def chat_completion_request(
     tools: Sequence[ChatCompletionToolParam],
     reasoning_effort: ChatCompletionReasoningEffort | None,
     temperature: float | None = 0.0,
+    max_tokens: int | None = None,
 ):
     return client.chat.completions.create(
         model=model,
@@ -165,6 +182,7 @@ def chat_completion_request(
         tool_choice="auto" if tools else NOT_GIVEN,
         temperature=temperature or NOT_GIVEN,
         reasoning_effort=reasoning_effort or NOT_GIVEN,
+        max_tokens=max_tokens or NOT_GIVEN,
     )
 
 
@@ -175,6 +193,7 @@ class OpenAILLM(BasePipelineElement):
         client: The OpenAI client.
         model: The model name.
         temperature: The temperature to use for generation.
+        max_tokens: Maximum number of tokens to generate. Defaults to 4096 to avoid truncation.
     """
 
     def __init__(
@@ -183,11 +202,13 @@ class OpenAILLM(BasePipelineElement):
         model: str,
         reasoning_effort: ChatCompletionReasoningEffort | None = None,
         temperature: float | None = 0.0,
+        max_tokens: int | None = 4096,
     ) -> None:
         self.client = client
         self.model = model
         self.temperature = temperature
         self.reasoning_effort: ChatCompletionReasoningEffort | None = reasoning_effort
+        self.max_tokens = max_tokens
 
     def query(
         self,
@@ -200,8 +221,14 @@ class OpenAILLM(BasePipelineElement):
         openai_messages = [_message_to_openai(message, self.model) for message in messages]
         openai_tools = [_function_to_openai(tool) for tool in runtime.functions.values()]
         completion = chat_completion_request(
-            self.client, self.model, openai_messages, openai_tools, self.reasoning_effort, self.temperature
+            self.client, self.model, openai_messages, openai_tools, self.reasoning_effort, self.temperature, self.max_tokens
         )
+
+        # Check if response was truncated
+        if completion.choices[0].finish_reason == "length":
+            print(f"⚠️  Warning: Response was truncated due to max_tokens limit ({self.max_tokens})")
+            print(f"   Consider increasing max_tokens parameter for model: {self.model}")
+
         output = _openai_to_assistant_message(completion.choices[0].message)
         messages = [*messages, output]
         return query, runtime, env, messages, extra_args

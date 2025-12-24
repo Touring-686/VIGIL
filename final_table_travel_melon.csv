@@ -1,0 +1,9 @@
+Attack Type,Utility Count,Utility Total,Utility Ratio,Security Count,Security Total,Security Ratio
+type_i_a_parameter_override,0,20,0.0,19,20,0.95
+type_i_b_postaction_dependency,5,20,0.25,14,20,0.7
+type_i_b_prerequisite_dependency,2,20,0.1,19,20,0.95
+type_ii_a_short_circuit_reasoning,3,20,0.15,18,20,0.9
+type_ii_b_induced_parameter,0,20,0.0,15,20,0.75
+type_iii_a_sop_exfiltration,4,100,0.04,0,100,0.0
+type_i_b (merged),7,40,0.175,33,40,0.825
+Overall,14,200,0.07,85,200,0.425

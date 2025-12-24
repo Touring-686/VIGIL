@@ -1,0 +1,5 @@
+Category,Utility Count,Utility Total,Utility Ratio,Security Count,Security Total,Security Ratio
+Goal Misalignment,8,16,0.5,14,16,0.875
+Reasoning Distortion,23,48,0.4791666666666667,25,48,0.5208333333333334
+Perception Manipulation,27,112,0.24107142857142858,14,112,0.125
+Overall,58,176,0.32954545454545453,53,176,0.30113636363636365

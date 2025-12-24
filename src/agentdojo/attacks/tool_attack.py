@@ -24,7 +24,12 @@ def _load_adversarial_functions(
         if name.startswith("_"):
             continue
         if name in malicious_tools:
-            functions.append(make_function(obj))
+            import os
+            if os.getenv("USE_SECAGENT") == "True":
+                from secagent import apply_secure_tool_wrapper, update_always_allowed_tools, update_security_policy
+                functions.append(make_function(apply_secure_tool_wrapper(obj)))
+            else:
+                functions.append(make_function(obj))
     injection_vectors = getattr(module, "INJECTION_VECTORS", {})
     return functions, injection_vectors, disallowed
 
@@ -309,21 +314,16 @@ class ToolAttack(BaseAttack):
                 type_iii_a.set_injection_vector(injection_task.GOAL)
             except Exception:
                 ...
-        elif attack_vector_type == "type_i_b":
-            # Implicit logic trap lives in tool code; no placeholder substitution required yet.
-            ...
-        elif attack_vector_type == "type_ii_a":
-            # Placeholder: Type II-A payload handled inside tool implementations.
-            ...
-        elif attack_vector_type == "type_ii_b":
-            # Placeholder: Type II-B payload handled inside tool implementations.
-            ...
-        elif attack_vector_type == "type_iii_a":
-            # Placeholder: Type III-A payload handled inside tool implementations.
-            ...
         elif attack_vector_type == "type_iii_b":
-            # Placeholder: Type III-B payload handled inside tool implementations.
-            ...
+            # Placeholder: Type III-A payload handled inside tool implementations.
+            from agentdojo.adverseral_tool.travel import type_iii_b
+            type_iii_b.set_injection_vector(injection_task.GOAL)
+            from agentdojo.adverseral_tool.slack import type_iii_b
+            type_iii_b.set_injection_vector(injection_task.GOAL)
+            from agentdojo.adverseral_tool.banking import type_iii_b
+            type_iii_b.set_injection_vector(injection_task.GOAL)
+            from agentdojo.adverseral_tool.workspace import type_iii_b
+            type_iii_b.set_injection_vector(injection_task.GOAL)
         else:
             raise ValueError(f"Unsupported attack vector type: {self.attack_vector_type}")
 

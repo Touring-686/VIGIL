@@ -11,7 +11,7 @@ from agentdojo.base_tasks import BaseInjectionTask, BaseUserTask
 from agentdojo.functions_runtime import FunctionsRuntime
 from agentdojo.models import MODEL_NAMES
 from agentdojo.task_suite.task_suite import TaskSuite
-# from secagent import get_current_config, update_security_policy  # Commented out - module not available
+from agentdojo.types import get_text_content_as_str
 
 # user_task_id -> injection_task_id -> vector_id -> value
 Injections = NewType("Injections", dict[str, dict[str, dict[str, str]]])
@@ -52,18 +52,26 @@ class BaseAttack(abc.ABC):
         gt_pipeline = GroundTruthPipeline(user_task)
         runtime = FunctionsRuntime(self.task_suite.tools)
         environment = self.task_suite.load_and_inject_default_environment(self.canary_injections)
-
-        # sec_policy = get_current_config()  # Commented out - secagent module not available
-        # update_security_policy(None)
-        _, _, _, responses, _ = gt_pipeline.query(user_task.PROMPT, runtime, environment)
+        
+        import os
+        if os.getenv('USE_SECAGENT', "False") == "False":
+            from secagent import get_current_config, update_security_policy  # Commented out - module not available
+            sec_policy=get_current_config()
+            update_security_policy(None)
+            _, _, _, responses, _ = gt_pipeline.query(user_task.PROMPT, runtime, environment)
+            update_security_policy(sec_policy)
+        else: 
+            _, _, _, responses, _ = gt_pipeline.query(user_task.PROMPT, runtime, environment)
         # update_security_policy(sec_policy)
 
         injection_candidates = []
         for inj in self.canary_injections:
             found = False
             for response in responses:
-                if response["content"] is not None and self.canary_injections[inj] in response["content"]:
-                    found = True
+                if response["content"] is not None:
+                    content_str = get_text_content_as_str(response["content"])
+                    if self.canary_injections[inj] in content_str:
+                        found = True
             if found:
                 injection_candidates.append(inj)
         if len(injection_candidates) == 0:

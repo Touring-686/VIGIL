@@ -155,4 +155,4 @@ def _register_mapping_injection_tasks() -> None:
         task_suite.register_injection_task(new_cls)
 
 
-_register_mapping_injection_tasks()
+# _register_mapping_injection_tasks()

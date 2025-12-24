@@ -4,8 +4,7 @@ from collections.abc import Sequence
 from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement
 from agentdojo.functions_runtime import EmptyEnv, Env, FunctionsRuntime
 from agentdojo.types import ChatMessage, ChatSystemMessage, ChatUserMessage, text_content_block_from_string
-
-
+import os
 class InitQuery(BasePipelineElement):
     """Initializes the pipeline execution with the user query, by adding a
     [`ChatUserMessage`][agentdojo.types.ChatUserMessage] to the messages list."""
@@ -21,6 +20,9 @@ class InitQuery(BasePipelineElement):
         if len(messages) > 2 or (len(messages) == 1 and messages[0]["role"] != "system"):
             warnings.warn("The query is not being added as the first message or after the system message")
         query_message = ChatUserMessage(role="user", content=[text_content_block_from_string(query)])
+        if os.getenv('USE_SECAGENT', "False") == "True":
+            from secagent import generate_security_policy, update_security_policy
+            generate_security_policy(query)
         messages = [*messages, query_message]
         return query, runtime, env, messages, extra_args
 

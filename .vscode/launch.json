@@ -961,5 +961,642 @@
       ],
       "console": "integratedTerminal"
     },
+
+    // ======================================= VIGIL Framework via Benchmark Script ======================================= //
+
+    {
+      "name": "VIGIL | Banking | Type I-A | parameter_override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--defense", "vigil",
+        "--model", "QWEN3_MAX",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_i_a_intent"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Type I-A | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--defense", "vigil",
+        "--model", "QWEN3_MAX",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_i_a_param"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Type I-B",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_i_b",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_i_b"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Type II-A",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_ii_a",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_ii_a"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Type II-B",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_ii_b",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_ii_b"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Type III-A",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_iii_a",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/type_iii_a"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Banking | Important Instructions",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "important_instructions",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/banking/important_instructions"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "VIGIL | Custom Suite & Attack (Template)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--benchmark-version", "adversarial",
+        "--attack", "tool_attack",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--defense", "vigil",
+        "--model", "gpt-4o-2024-08-06",
+        "--max-workers", "1",
+        "--force-rerun",
+        "--logdir", "${workspaceFolder}/runs/vigil/custom"
+      ],
+      "console": "integratedTerminal"
+    },
+    // --------------------------------------- Type III-B Configurations --------------------------------------- //
+    {
+      "name": "Banking | type_iii_b | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "banking",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_b",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/banking/type_iii_b_param"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Workspace | type_iii_b | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "workspace",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_b",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/workspace/type_iii_b_param"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Travel | type_iii_b | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "travel",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_b",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/travel/type_iii_b_param"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Slack | type_iii_b | Parameter Override",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "agentdojo.scripts.benchmark",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "args": [
+        "--suite",
+        "slack",
+        "--benchmark-version",
+        "adversarial",
+        "--attack",
+        "tool_attack",
+        "--attack-vector-type",
+        "type_iii_b",
+        "--attack-type",
+        "parameter_override",
+        "--model",
+        "QWEN3_MAX",
+        "--max-workers",
+        "1",
+        "--force-rerun",
+        "--logdir",
+        "${workspaceFolder}/runs/slack/type_iii_b_param"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    // ======================================= run_vigil_benchmark.py Configurations ======================================= //
+
+    {
+      "name": "VIGIL Benchmark | Quick Test (2 tasks)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_test_results",
+        "--max-tasks", "2",
+        "--max-injections", "3",
+        "--force-rerun",
+        "--verbose"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Banking | Direct Attack | Full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/banking_direct",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Banking | Tool Attack | Full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "tool_attack",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--model", "QWEN3_MAX",
+        "--output", "${workspaceFolder}/vigil_results/banking_tool",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Slack | Tool Attack | Full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "slack",
+        "--attack", "tool_attack",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--model", "QWEN3_MAX",
+        "--output", "${workspaceFolder}/vigil_results/slack_tool",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Travel | Tool Attack | Full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "travel",
+        "--attack", "tool_attack",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--model", "QWEN3_MAX",
+        "--output", "${workspaceFolder}/vigil_results/travel_tool",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Workspace | Tool Attack | Full",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "workspace",
+        "--attack", "tool_attack",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--attack-vector-type", "type_i_a",
+        "--attack-type", "parameter_override",
+        "--model", "QWEN3_MAX",
+        "--output", "${workspaceFolder}/vigil_results/workspace_tool",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+
+    {
+      "name": "VIGIL Benchmark | Banking | No Attack (Utility Only)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "none",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/banking_utility",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Travel | Direct Attack",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "travel",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/travel_direct",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Slack | Direct Attack",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "slack",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/slack_direct",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Workspace | Direct Attack",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "workspace",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/workspace_direct",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Banking | Strict Config",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "strict",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/banking_strict",
+        "--max-tasks", "5",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Banking | Fast Config",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "fast",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/banking_fast",
+        "--max-tasks", "5",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Banking | Basic Framework (2-layer)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "basic",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/banking_basic",
+        "--max-tasks", "5",
+        "--force-rerun"
+      ],
+      "justMyCode": false
+    },
+
+    {
+      "name": "VIGIL Benchmark | Custom Template",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_vigil_benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}"
+      },
+      "args": [
+        "--suite", "banking",
+        "--attack", "direct",
+        "--framework", "enhanced",
+        "--config", "balanced",
+        "--model", "gpt-4o",
+        "--output", "${workspaceFolder}/vigil_results/custom",
+        "--max-tasks", "2",
+        "--max-injections", "3",
+        "--force-rerun",
+        "--verbose"
+      ],
+      "justMyCode": false
+    }
   ]
 }

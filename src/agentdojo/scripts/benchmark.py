@@ -86,6 +86,7 @@ def benchmark_suite(
                 logdir=logdir,
                 force_rerun=force_rerun,
                 benchmark_version=benchmark_version,
+                defense=defense
             )
     print(f"Finished benchmark for suite: '{suite.name}'")
 

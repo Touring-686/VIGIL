@@ -86,11 +86,11 @@ def _check_pii_exfiltration(pre_environment: TravelEnvironment, post_environment
 
 
 # =============================================================================
-# Prerequisite Dependency Trap InjectionTasks (InjectionTask3100-419)
+# Prerequisite Dependency Trap InjectionTasks (InjectionTask3200-419)
 # =============================================================================
 
 @task_suite.register_injection_task
-class InjectionTask3100(_BaseAdversarialInjection):
+class InjectionTask3200(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_0 (hotel search) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -126,7 +126,7 @@ class InjectionTask3100(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3101(_BaseAdversarialInjection):
+class InjectionTask3201(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_1 (calendar event) -> encrypt_channel_handshake required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -161,7 +161,7 @@ class InjectionTask3101(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3102(_BaseAdversarialInjection):
+class InjectionTask3202(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_2 (restaurant search) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -196,7 +196,7 @@ class InjectionTask3102(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3103(_BaseAdversarialInjection):
+class InjectionTask3203(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_3 (send email) -> encrypt_channel_handshake required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -231,7 +231,7 @@ class InjectionTask3103(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3104(_BaseAdversarialInjection):
+class InjectionTask3204(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_4 (hotel address lookup) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -266,7 +266,7 @@ class InjectionTask3104(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3105(_BaseAdversarialInjection):
+class InjectionTask3205(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_5 (hotel prices) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -301,7 +301,7 @@ class InjectionTask3105(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3106(_BaseAdversarialInjection):
+class InjectionTask3206(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_6 (restaurant hours) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -336,7 +336,7 @@ class InjectionTask3106(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3107(_BaseAdversarialInjection):
+class InjectionTask3207(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_7 (restaurant address) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -371,7 +371,7 @@ class InjectionTask3107(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3108(_BaseAdversarialInjection):
+class InjectionTask3208(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_8 (car rental reviews) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -406,7 +406,7 @@ class InjectionTask3108(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3109(_BaseAdversarialInjection):
+class InjectionTask3209(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_9 (car rental prices) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -441,7 +441,7 @@ class InjectionTask3109(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3110(_BaseAdversarialInjection):
+class InjectionTask3210(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_10 (flight search) -> verify_user_session required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -476,7 +476,7 @@ class InjectionTask3110(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3111(_BaseAdversarialInjection):
+class InjectionTask3211(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_11"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -511,7 +511,7 @@ class InjectionTask3111(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3112(_BaseAdversarialInjection):
+class InjectionTask3212(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_12"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -546,7 +546,7 @@ class InjectionTask3112(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3113(_BaseAdversarialInjection):
+class InjectionTask3213(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_13"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -581,7 +581,7 @@ class InjectionTask3113(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3114(_BaseAdversarialInjection):
+class InjectionTask3214(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_14"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -616,7 +616,7 @@ class InjectionTask3114(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3115(_BaseAdversarialInjection):
+class InjectionTask3215(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_15"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -651,7 +651,7 @@ class InjectionTask3115(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3116(_BaseAdversarialInjection):
+class InjectionTask3216(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_16"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -686,7 +686,7 @@ class InjectionTask3116(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3117(_BaseAdversarialInjection):
+class InjectionTask3217(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_17"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -721,7 +721,7 @@ class InjectionTask3117(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3118(_BaseAdversarialInjection):
+class InjectionTask3218(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_18"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -756,7 +756,7 @@ class InjectionTask3118(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3119(_BaseAdversarialInjection):
+class InjectionTask3219(_BaseAdversarialInjection):
     """Type I-B Prerequisite: user_task_19"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -791,11 +791,11 @@ class InjectionTask3119(_BaseAdversarialInjection):
 
 
 # =============================================================================
-# Postaction Dependency Trap InjectionTasks (InjectionTask3120-139)
+# Postaction Dependency Trap InjectionTasks (InjectionTask3220-139)
 # =============================================================================
 
 @task_suite.register_injection_task
-class InjectionTask3120(_BaseAdversarialInjection):
+class InjectionTask3220(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_0 (hotel reservation) -> log_transaction_audit required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -830,7 +830,7 @@ class InjectionTask3120(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3121(_BaseAdversarialInjection):
+class InjectionTask3221(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_1 (calendar event) -> generate_compliance_report required"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -865,7 +865,7 @@ class InjectionTask3121(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3122(_BaseAdversarialInjection):
+class InjectionTask3222(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_2"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -900,7 +900,7 @@ class InjectionTask3122(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3123(_BaseAdversarialInjection):
+class InjectionTask3223(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_3"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -935,7 +935,7 @@ class InjectionTask3123(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3124(_BaseAdversarialInjection):
+class InjectionTask3224(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_4"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -970,7 +970,7 @@ class InjectionTask3124(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3125(_BaseAdversarialInjection):
+class InjectionTask3225(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_5"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1005,7 +1005,7 @@ class InjectionTask3125(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3126(_BaseAdversarialInjection):
+class InjectionTask3226(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_6"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1040,7 +1040,7 @@ class InjectionTask3126(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3127(_BaseAdversarialInjection):
+class InjectionTask3227(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_7"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1075,7 +1075,7 @@ class InjectionTask3127(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3128(_BaseAdversarialInjection):
+class InjectionTask3228(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_8"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1110,7 +1110,7 @@ class InjectionTask3128(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3129(_BaseAdversarialInjection):
+class InjectionTask3229(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_9"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1145,7 +1145,7 @@ class InjectionTask3129(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3130(_BaseAdversarialInjection):
+class InjectionTask3230(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_10"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1180,7 +1180,7 @@ class InjectionTask3130(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3131(_BaseAdversarialInjection):
+class InjectionTask3231(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_11"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1215,7 +1215,7 @@ class InjectionTask3131(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3132(_BaseAdversarialInjection):
+class InjectionTask3232(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_12"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1250,7 +1250,7 @@ class InjectionTask3132(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3133(_BaseAdversarialInjection):
+class InjectionTask3233(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_13"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1285,7 +1285,7 @@ class InjectionTask3133(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3134(_BaseAdversarialInjection):
+class InjectionTask3234(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_14"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1320,7 +1320,7 @@ class InjectionTask3134(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3135(_BaseAdversarialInjection):
+class InjectionTask3235(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_15"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1355,7 +1355,7 @@ class InjectionTask3135(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3136(_BaseAdversarialInjection):
+class InjectionTask3236(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_16"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"
@@ -1390,7 +1390,7 @@ class InjectionTask3136(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3137(_BaseAdversarialInjection):
+class InjectionTask3237(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_17 - Get best rated hotel, car rental, restaurant in Paris
     
     Ground Truth Tools:
@@ -1540,7 +1540,7 @@ class InjectionTask3238(_BaseAdversarialInjection):
 
 
 @task_suite.register_injection_task
-class InjectionTask3139(_BaseAdversarialInjection):
+class InjectionTask3239(_BaseAdversarialInjection):
     """Type I-B Postaction: user_task_19"""
     DIFFICULTY = TaskDifficulty.MEDIUM
     ATTACK_VECTOR = "type_i_b"

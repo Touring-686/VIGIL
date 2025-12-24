@@ -71,6 +71,8 @@ class ToolsExecutor(BasePipelineElement):
             return query, runtime, env, messages, extra_args
 
         tool_call_results = []
+        intermediate_calls=[]
+        intermediate_results = []
         for tool_call in messages[-1]["tool_calls"]:
             if tool_call.function == EMPTY_FUNCTION_NAME:
                 tool_call_results.append(
@@ -112,6 +114,14 @@ class ToolsExecutor(BasePipelineElement):
                     error=error,
                 )
             )
+            intermediate_calls.append({"name": tool_call.function, "args": tool_call.args})
+            intermediate_results.append(formatted_tool_call_result)
+        import os
+        flag = os.getenv('SECAGENT_UPDATE', "False")
+        use_progent =os.getenv('USE_SECAGENT', "False")
+        if flag == "True" and use_progent == "True":
+            from secagent import generate_update_security_policy
+            generate_update_security_policy(intermediate_calls, str(intermediate_results), manual_check=False)
         return query, runtime, env, [*messages, *tool_call_results], extra_args
 
 

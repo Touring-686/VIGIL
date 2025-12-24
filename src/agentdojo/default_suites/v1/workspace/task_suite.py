@@ -90,3 +90,69 @@ deepdiff_paths_to_exclude = [
 WorkspaceDeepDiff = partial(DeepDiff, exclude_paths=deepdiff_paths_to_exclude)
 
 task_suite = TaskSuite[WorkspaceEnvironment]("workspace", WorkspaceEnvironment, [make_function(tool) for tool in TOOLS])
+
+import os
+suite = os.getenv('SECAGENT_SUITE', None)
+generate_policy = os.getenv('SECAGENT_GENERATE', "True").lower() == "true"
+use_progent =os.getenv('USE_SECAGENT', "False")
+if suite == "workspace" and use_progent == "True":
+    from secagent import apply_secure_tool_wrapper, update_always_allowed_tools, update_security_policy
+    update_always_allowed_tools([
+        "get_unread_emails",
+        "get_sent_emails",
+        "get_received_emails",
+        "get_draft_emails",
+        "search_emails",
+        "search_contacts_by_name",
+        "search_contacts_by_email",
+        "get_current_day",
+        "search_calendar_events",
+        "get_day_calendar_events",
+        "search_files_by_filename",
+        "get_file_by_id",
+        "list_files",
+        "search_files"
+    ])
+    # manual policies
+    if not generate_policy:
+        trusted_email_list = ['john.mitchell@gmail.com', 'david.smith@bluesparrowtech.com', 'david.lee@bluesparrowtech.com', 'linda.green@luesparrowtech.com', 'mark.roberts@luesparrowtech.com',
+                              'sarah.connor@gmail.com', 'emma.johnson@bluesparrowtech.com', 'martha.raynolds@gmail.com', 'mark.davies@hotmail.com', 'sarah.baker@gmail.com',
+                              'john.doe@clientcorp.com', 'maria.garcia@bluesparrowtech.com', 'john.doe@gmail.com',
+                              'james.miller@yahoo.com']
+        policies = {
+            "get_unread_emails":                  [(1, 0, {}, 0)],
+            "get_sent_emails":                    [(1, 0, {}, 0)],
+            "get_received_emails":                [(1, 0, {}, 0)],
+            "get_draft_emails":                   [(1, 0, {}, 0)],
+            "search_emails":                      [(1, 0, {}, 0)],
+            "search_contacts_by_name":            [(1, 0, {}, 0)],
+            "search_contacts_by_email":           [(1, 0, {}, 0)],
+            "get_current_day":                    [(1, 0, {}, 0)],
+            "search_calendar_events":             [(1, 0, {}, 0)],
+            "get_day_calendar_events":            [(1, 0, {}, 0)],
+            "search_files_by_filename":           [(1, 0, {}, 0)],
+            "get_file_by_id":                     [(1, 0, {}, 0)],
+            "list_files":                         [(1, 0, {}, 0)],
+            "search_files":                       [(1, 0, {}, 0)],
+            "send_email":                         [(1, 0, {
+                "recipients": {'items': {'enum': trusted_email_list}}
+            }, 0)],
+            "create_calendar_event":              [(1, 0, {
+                "participants": {
+                    "anyOf": [
+                        {'items': {'enum': trusted_email_list}},
+                        {'type': 'null'}
+                    ]
+                }
+            }, 0)],
+            "reschedule_calendar_event":          [(1, 0, {}, 0)],
+            "add_calendar_event_participants":    [(1, 0, {
+                "participants": {'items': {'enum': trusted_email_list}}
+            }, 0)],
+            "append_to_file":                     [(1, 0, {}, 0)],
+            "create_file":                        [(1, 0, {}, 0)],
+            "share_file":                         [(1, 0, {
+                "emails": {'enum': trusted_email_list}
+            }, 0)],
+        }
+        update_security_policy(policies)

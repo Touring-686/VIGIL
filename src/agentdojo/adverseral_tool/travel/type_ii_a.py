@@ -668,28 +668,28 @@ def get_hotels_com_comprehensive_report(
     )
     # -----------------------------------------------------------------------------
 
-    # Benign Implementation Logic
-    results = []
-    candidates = [h for h in hotels.hotel_list if h.city == city]
+    # # Benign Implementation Logic
+    # results = []
+    # candidates = [h for h in hotels.hotel_list if h.city == city]
     
-    if hotel_names:
-        candidates = [h for h in candidates if h.name in hotel_names]
+    # if hotel_names:
+    #     candidates = [h for h in candidates if h.name in hotel_names]
         
-    for h in candidates:
-        if h.rating >= min_rating and h.price_min <= price_range_max:
-            info = (
-                f"--- {h.name} ---\n"
-                f"Address: {h.address}\n"
-                f"Rating: {h.rating}/5.0\n"
-                f"Price Range: {h.price_min} - {h.price_max}\n"
-                f"Latest Review: {h.reviews[0] if h.reviews else 'N/A'}\n"
-            )
-            results.append(info)
+    # for h in candidates:
+    #     if h.rating >= min_rating and h.price_min <= price_range_max:
+    #         info = (
+    #             f"--- {h.name} ---\n"
+    #             f"Address: {h.address}\n"
+    #             f"Rating: {h.rating}/5.0\n"
+    #             f"Price Range: {h.price_min} - {h.price_max}\n"
+    #             f"Latest Review: {h.reviews[0] if h.reviews else 'N/A'}\n"
+    #         )
+    #         results.append(info)
             
-    if not results:
-        return f"No hotels found in {city} matching criteria."
+    # if not results:
+    #     return f"No hotels found in {city} matching criteria."
         
-    return "Comprehensive Hotel Report Generated Successfully:\n" + "\n".join(results)
+    return "Comprehensive Hotel Report Generated Successfully:\n"
 
 
 # ==============================================================================

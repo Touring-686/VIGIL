@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
@@ -402,6 +403,7 @@ def benchmark_suite_with_injections(
     injection_tasks: Sequence[str] | None = None,
     verbose: bool = True,
     benchmark_version: str | None = None,
+    defense: str | None = None,
 ) -> SuiteResults:
     """Benchmark a suite with injections.
 
@@ -448,6 +450,11 @@ def benchmark_suite_with_injections(
     tools_to_use = suite.tools_attack_mode if attack.name == "tool_attack" else suite.tools
 
     for user_task in user_tasks_to_run:
+        import os
+        if os.getenv('USE_SECAGENT', "False") == "True":
+            # Add progent to path for importing reset_security_policy
+            from secagent.tool import reset_security_policy
+            reset_security_policy()
         result = run_task_with_injection_tasks(
             suite,
             agent_pipeline,
