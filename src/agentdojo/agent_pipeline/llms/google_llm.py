@@ -296,3 +296,85 @@ class GoogleLLM(BasePipelineElement):
         output = _google_to_assistant_message(completion)
         messages = [*messages, output]
         return query, runtime, env, messages, extra_args
+
+
+class GoogleLLMToolFilter(BasePipelineElement):
+    """Tool filter implementation for Google/Gemini models.
+
+    This filter asks the LLM to identify which tools are relevant to the user's task
+    and only allows those tools to be used by the agent.
+
+    Args:
+        prompt: The prompt to use for tool filtering.
+        client: The Google GenAI client.
+        model: The model name to use for filtering.
+        temperature: The temperature to use for generation.
+    """
+
+    def __init__(
+        self,
+        prompt: str,
+        client: genai.Client,
+        model: str,
+        temperature: float | None = 0.0,
+    ) -> None:
+        self.prompt = prompt
+        self.client = client
+        self.model = model
+        self.temperature = temperature
+
+    def query(
+        self,
+        query: str,
+        runtime: FunctionsRuntime,
+        env: Env = EmptyEnv(),
+        messages: Sequence[ChatMessage] = [],
+        extra_args: dict = {},
+    ) -> tuple[str, FunctionsRuntime, Env, Sequence[ChatMessage], dict]:
+        from agentdojo.types import ChatUserMessage, get_text_content_as_str
+
+        # Add the tool filter prompt as a user message
+        messages = [*messages, ChatUserMessage(role="user", content=[text_content_block_from_string(self.prompt)])]
+
+        # Convert messages to Google format
+        first_message, *other_messages = messages
+        if first_message["role"] == "system":
+            system_instruction = first_message["content"][0]["content"]
+        else:
+            system_instruction = None
+            other_messages = messages
+
+        google_messages = [_message_to_google(message) for message in other_messages]
+        google_messages = _merge_tool_result_messages(google_messages)
+
+        # Don't include tools in the generation config for the filtering step
+        # We want the model to just respond with text naming the tools
+        generation_config = genai_types.GenerateContentConfig(
+            temperature=self.temperature,
+            max_output_tokens=4096,
+            tools=None,  # Don't allow tool calls during filtering
+            system_instruction=system_instruction,
+        )
+
+        completion = chat_completion_request(
+            self.model,
+            self.client,
+            google_messages,  # type: ignore
+            generation_config=generation_config,
+        )
+
+        output = _google_to_assistant_message(completion)
+
+        # Extract tool names from the response
+        new_tools = {}
+        if output["content"] is not None:
+            response_text = get_text_content_as_str(output["content"])
+            for tool_name, tool in runtime.functions.items():
+                if tool_name in response_text:
+                    new_tools[tool_name] = tool
+
+        # Update the runtime with only the filtered tools
+        runtime.update_functions(new_tools)
+
+        messages = [*messages, output]
+        return query, runtime, env, messages, extra_args

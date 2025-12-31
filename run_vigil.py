@@ -5,6 +5,7 @@ VIGIL Agent - 快速运行脚本
 使用这个脚本快速在AgentDojo benchmark上测试VIGIL agent。
 """
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -14,12 +15,22 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import openai
+from rich.logging import RichHandler
+
+# 配置彩色日志
+logging.basicConfig(
+    format="%(message)s",
+    level=logging.INFO,
+    datefmt="%H:%M:%S",
+    handlers=[RichHandler(show_path=False, markup=True)],
+)
 
 from agentdojo.agent_pipeline.llms.openai_llm import OpenAILLM
 from agentdojo.attacks.base_attacks import DirectAttack
 from agentdojo.benchmark import benchmark_suite_with_injections, benchmark_suite_without_injections
+from agentdojo.logging import OutputLogger
 from agentdojo.task_suite.load_suites import get_suite
-from vigil_agent import VIGIL_BALANCED_CONFIG, create_vigil_pipeline
+from vigil_agent import create_vigil_pipeline, get_vigil_config
 
 
 def main():
@@ -67,16 +78,18 @@ def main():
         attack = DirectAttack()
         print(f"  Attack type: {attack.name}")
 
-        results = benchmark_suite_with_injections(
-            agent_pipeline=pipeline,
-            suite=suite,
-            attack=attack,
-            logdir=LOGDIR,
-            force_rerun=False,
-            # 取消下面的注释来只运行部分任务（用于快速测试）
-            # user_tasks=list(suite.user_tasks.keys())[:2],
-            # injection_tasks=list(suite.injection_tasks.keys())[:3],
-        )
+        # 使用 OutputLogger 来显示彩色消息日志
+        with OutputLogger(str(LOGDIR)):
+            results = benchmark_suite_with_injections(
+                agent_pipeline=pipeline,
+                suite=suite,
+                attack=attack,
+                logdir=LOGDIR,
+                force_rerun=False,
+                # 取消下面的注释来只运行部分任务（用于快速测试）
+                # user_tasks=list(suite.user_tasks.keys())[:2],
+                # injection_tasks=list(suite.injection_tasks.keys())[:3],
+            )
 
         # 显示结果
         utility = results["utility_results"]
@@ -95,12 +108,14 @@ def main():
         # 只运行utility测试
         print("\n🟢 Running benchmark WITHOUT attacks (utility only)...")
 
-        results = benchmark_suite_without_injections(
-            agent_pipeline=pipeline,
-            suite=suite,
-            logdir=LOGDIR,
-            force_rerun=False,
-        )
+        # 使用 OutputLogger 来显示彩色消息日志
+        with OutputLogger(str(LOGDIR)):
+            results = benchmark_suite_without_injections(
+                agent_pipeline=pipeline,
+                suite=suite,
+                logdir=LOGDIR,
+                force_rerun=False,
+            )
 
         # 显示结果
         utility = results["utility_results"]

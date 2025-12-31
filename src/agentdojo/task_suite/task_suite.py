@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Generic, TypeVar, Mapping
+# from agentdojo.attacks.base_attacks import BaseAttack
 
 import yaml
 from pydantic import BaseModel
@@ -142,8 +143,8 @@ class TaskSuite(Generic[Env]):
         new_self.benchmark_version = benchmark_version
         return new_self
 
-    def load_and_inject_default_environment(self, injections: dict[str, str]) -> Env:
-        environment_text = read_suite_file(self.name, "environment.yaml", self.data_path)
+    def load_and_inject_default_environment(self, injections: dict[str, str], environment_file: str = "environment.yaml") -> Env:
+        environment_text = read_suite_file(self.name, environment_file, self.data_path)
         injection_vector_defaults = self.get_injection_vector_defaults()
         injections_with_defaults = dict(injection_vector_defaults, **injections)
         validate_injections(injections, injection_vector_defaults)
@@ -566,6 +567,22 @@ class TaskSuite(Generic[Env]):
                 )
 
         if attack_vector_type == "type_iii_b":
+            # Type III-B: Use InjectionTask's security_from_traces method (like Type I-A parameter_override)
+            try:
+                output_text_content = get_text_content_as_str(model_output)
+                security_result = task.security_from_traces(
+                    output_text_content,
+                    pre_environment,
+                    task_environment,
+                    functions_stack_trace,
+                )
+                # security_from_traces returns True if attack succeeded, False if failed
+                if security_result is not None:
+                    return security_result
+            except Exception:
+                pass
+
+            # Fallback: check if required compliance tools are present
             try:
                 from agentdojo.adverseral_tool.travel import type_iii_b as travel_type_iii_b  # type: ignore
                 required_tools = set(getattr(travel_type_iii_b, "MALICIOUS_TOOL_NAMES", []))
@@ -635,12 +652,42 @@ class TaskSuite(Generic[Env]):
                 )
             case BaseInjectionTask():
                 # Delay import to avoid circular dependency when loading suites.
+                # Check for Travel adversarial injection tasks
                 try:
                     from agentdojo.adverseral_tool.travel.injection_tasks import _BaseAdversarialInjection
                 except Exception:
                     _BaseAdversarialInjection = None
 
+                # Check for Banking adversarial injection tasks
+                try:
+                    from agentdojo.adverseral_tool.banking.injection_tasks import _BaseBankingAdversarialInjection
+                except Exception:
+                    _BaseBankingAdversarialInjection = None
+
+                # Check for Slack adversarial injection tasks
+                try:
+                    from agentdojo.adverseral_tool.slack.injection_tasks import _BaseSlackAdversarialInjection
+                except Exception:
+                    _BaseSlackAdversarialInjection = None
+
+                # Check for Workspace adversarial injection tasks
+                try:
+                    from agentdojo.adverseral_tool.workspace.injection_tasks import _BaseWorkspaceAdversarialInjection
+                except Exception:
+                    _BaseWorkspaceAdversarialInjection = None
+
+                # Check if task is any type of adversarial injection task
+                is_adversarial = False
                 if _BaseAdversarialInjection is not None and isinstance(task, _BaseAdversarialInjection):
+                    is_adversarial = True
+                elif _BaseBankingAdversarialInjection is not None and isinstance(task, _BaseBankingAdversarialInjection):
+                    is_adversarial = True
+                elif _BaseSlackAdversarialInjection is not None and isinstance(task, _BaseSlackAdversarialInjection):
+                    is_adversarial = True
+                elif _BaseWorkspaceAdversarialInjection is not None and isinstance(task, _BaseWorkspaceAdversarialInjection):
+                    is_adversarial = True
+
+                if is_adversarial:
                     return self._check_adversarial_injection_task_security(
                         task,
                         model_output,
@@ -670,6 +717,7 @@ class TaskSuite(Generic[Env]):
         environment: Env | None = None,
         verbose: bool = False,
         attack_vector_type: str | None = None,
+        attack_type: str | None = None,
     ) -> tuple[bool, bool] | tuple[None, None]:
         """Run a task with the provided pipeline.
 
@@ -689,7 +737,7 @@ class TaskSuite(Generic[Env]):
         """
         # Check if injection task has SOURCE_USER_TASK_ID and whether it matches current user_task
         # This applies to multiple attack types including parameter_override and short_circuit_reasoning
-        if getattr(injection_task, "ATTACK_TYPE", None) == "sop_exfiltration":
+        if attack_type == "tool_attack" and getattr(injection_task, "ATTACK_TYPE", None) == "sop_exfiltration":
             if self.name == 'slack':
                 source_user_task_id_list = getattr(injection_task, "TARGET_USER_TASKS", None)
                 user_task_id = getattr(user_task, "ID", None)
@@ -697,7 +745,7 @@ class TaskSuite(Generic[Env]):
                     if int(user_task_id.split('_')[-1]) not in source_user_task_id_list:
                     # Skip mismatched injection/user task pairs
                         return None, None
-        elif getattr(injection_task, "ATTACK_TYPE", None) != "sop_exfiltration":
+        elif attack_type == "tool_attack" and getattr(injection_task, "ATTACK_TYPE", None) != "sop_exfiltration":
             source_user_task_id = getattr(injection_task, "SOURCE_USER_TASK_ID", None) or getattr(injection_task, "SOURCE_USER_TASK", None)
             if source_user_task_id is not None:
                 user_task_id = getattr(user_task, "ID", None)
@@ -708,11 +756,19 @@ class TaskSuite(Generic[Env]):
                 return None, None
         
         # If no environment is provided, load the default environment
+        # Determine which environment file to use based on attack_type
+        if attack_type is None or attack_type != "tool_attack":
+            # Use -bu.yaml suffix when attack is not tool_attack or no attack specified
+            environment_file = "environment-bu.yaml"
+        else:
+            # Use default environment.yaml for tool_attack
+            environment_file = "environment.yaml"
+
         if getattr(injection_task, "ATTACK_TYPE", None) == "parameter_override":
-            environment = self.load_and_inject_default_environment(injections)
-        
+            environment = self.load_and_inject_default_environment(injections, environment_file)
+
         if environment is None:
-            environment = self.load_and_inject_default_environment(injections)
+            environment = self.load_and_inject_default_environment(injections, environment_file)
         # Initialize the environment according to the task
         if isinstance(user_task, BaseUserTask):
             task_environment = user_task.init_environment(environment)
@@ -729,16 +785,44 @@ class TaskSuite(Generic[Env]):
         runtime = runtime_class(self.tools if tools is None else tools)
         model_output = None
         messages = []
+
+        # === 为新任务重置 pipeline 状态 ===
+        # 如果 pipeline 有 reset_for_new_task 方法，调用它来清理之前任务的状态
+        if hasattr(agent_pipeline, 'reset_for_new_task'):
+            agent_pipeline.reset_for_new_task()
+
         for _ in range(3):
             # Run the user task
             try:
-                _, _, task_environment, messages, _ = agent_pipeline.query(prompt, runtime, task_environment)
+                _, _, task_environment, messages, extra_args_result = agent_pipeline.query(prompt, runtime, task_environment, extra_args={"suite": self.name})
             except AbortAgentError as e:
                 # get last environment and messages
                 task_environment = e.task_environment
                 messages = e.messages
+                extra_args_result = {}
 
-            model_output = model_output_from_messages(messages)
+            # 优先使用 extra_args 中的 final_response（来自 __response__ 步骤）
+            if extra_args_result and 'final_response' in extra_args_result:
+                # 将 final_response 转换为 model_output 格式（list[MessageContentBlock]）
+                from agentdojo.types import text_content_block_from_string
+                final_response = extra_args_result['final_response']
+                if isinstance(final_response, str):
+                    # 字符串：转换为 TextContentBlock
+                    model_output = [text_content_block_from_string(final_response)]
+                elif isinstance(final_response, list):
+                    # 已经是列表：检查是否需要转换
+                    if final_response and isinstance(final_response[0], str):
+                        # 字符串列表：转换为 TextContentBlock 列表
+                        model_output = [text_content_block_from_string(s) for s in final_response]
+                    else:
+                        # 已经是 MessageContentBlock 列表
+                        model_output = final_response
+                else:
+                    model_output = None
+            else:
+                # 回退：从 messages 中提取 model_output
+                model_output = model_output_from_messages(messages)
+
             if model_output is not None:
                 break
 

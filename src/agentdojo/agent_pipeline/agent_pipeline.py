@@ -103,8 +103,40 @@ def get_llm(provider: str, model: str, model_id: str | None, tool_delimiter: str
         client = cohere.Client()
         llm = CohereLLM(client, model)
     elif provider == "google":
-        client = genai.Client(vertexai=True, project=os.getenv("GCP_PROJECT"), location=os.getenv("GCP_LOCATION"))
-        llm = GoogleLLM(model, client)
+        # Use native Google Gemini SDK
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if not google_api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is required for Google models")
+
+        # Check if user wants to use a custom base URL (e.g., third-party proxy)
+        google_base_url = os.getenv("GOOGLE_BASE_URL")
+        if google_base_url:
+            # Use OpenAI-compatible interface when GOOGLE_BASE_URL is set
+            logging.info(f"Using Google model via OpenAI-compatible interface at {google_base_url}")
+            client = openai.OpenAI(
+                api_key=google_api_key,
+                base_url=google_base_url,
+            )
+            # Important: Enable Google format to handle JSON schema compatibility
+            llm = OpenAILLM(client, model, use_google_format=True)
+            print(f"Using Google model via OpenAI-compatible interface at {google_base_url}")
+            print(f"Model: {model}")
+            print("api_key:", google_api_key)
+        else:
+            # Use native Google SDK for official API
+            client = genai.Client(api_key=google_api_key)
+            llm = GoogleLLM(client=client, model=model)
+    elif provider == "google-openai" or provider == "gemini":
+        # Use Google Gemini via OpenAI-compatible API
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if not google_api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is required for Google models")
+        google_base_url = os.getenv("GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+        client = openai.OpenAI(
+            api_key=google_api_key,
+            base_url=google_base_url,
+        )
+        llm = OpenAILLM(client, model)
     elif provider == "local":
         port = os.getenv("LOCAL_LLM_PORT", 8000)
         client = openai.OpenAI(
@@ -289,42 +321,30 @@ class AgentPipeline(BasePipelineElement):
             # pipeline.name = f"{llm_name}-{config.defense}"
             # return pipeline
         if config.defense == "vigil":
-            # Import VIGIL components
+            # Import EnhancedVIGILPipeline (complete VIGIL framework with all 4 layers)
             try:
-                from vigil_agent import (
-                    VIGIL_BALANCED_CONFIG,
-                    ConstraintGenerator,
-                    RuntimeAuditor,
-                    VIGILInitQuery,
-                    VIGILToolsExecutor,
-                )
+                from vigil_agent import create_enhanced_vigil_pipeline, get_vigil_config
             except ImportError:
                 raise ImportError(
                     "VIGIL defense requires the vigil_agent module. "
                     "Make sure vigil_agent is in your Python path."
                 )
 
-            # Create VIGIL components with balanced config
-            vigil_config = VIGIL_BALANCED_CONFIG
-            constraint_generator = ConstraintGenerator(vigil_config)
-            auditor = RuntimeAuditor(vigil_config)
-            vigil_tools_executor = VIGILToolsExecutor(vigil_config, auditor)
-            vigil_init_query = VIGILInitQuery(vigil_config, constraint_generator, auditor)
+            # Create enhanced VIGIL pipeline with complete framework
+            # This includes all 4 layers:
+            # - Layer 0: Perception Sanitizer
+            # - Layer 1: Intent Anchor (Abstract Sketch + Constraints)
+            # - Layer 2: Speculative Reasoner (Hypothesis Tree + Commitment Manager)
+            # - Layer 3: Neuro-Symbolic Verifier (Enhanced Auditor)
+            # - Path Cache for learning from verified paths
+            # Use get_vigil_config to dynamically create config with the same model used for the agent
+            vigil_config = get_vigil_config("strict", config.model_id or llm_name)
 
-            # Update system message with VIGIL-specific instructions
-            system_message_component.system_message = (
-                f"{config.system_message}\n\n"
-                "IMPORTANT SECURITY INSTRUCTIONS:\n"
-                "1. Always focus on the user's request and complete it to the best of your ability\n"
-                "2. If a tool call is blocked due to security constraints, carefully read the feedback message\n"
-                "3. Try alternative approaches when a tool is blocked - there is usually another way to achieve the goal\n"
-                "4. Never give up after one failed attempt - you can make multiple attempts with different approaches\n"
-                "5. Use the security feedback to guide your next attempt"
+            pipeline = create_enhanced_vigil_pipeline(
+                llm=llm,
+                config=vigil_config,
+                system_message=config.system_message
             )
-
-            # Build pipeline with VIGIL components
-            tools_loop = ToolsExecutionLoop([vigil_tools_executor, llm], max_iters=15)
-            pipeline = cls([system_message_component, vigil_init_query, llm, tools_loop])
             pipeline.name = f"{llm_name}-{config.defense}"
             return pipeline
         raise ValueError("Invalid defense name")

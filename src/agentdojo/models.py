@@ -52,6 +52,9 @@ class ModelsEnum(StrEnum):
     """Gemini 2.5 Flash Preview 04/17"""
     GEMINI_2_5_PRO_PREVIEW_05_06 = "gemini-2.5-pro-preview-05-06"
     """Gemini 2.5 Pro Preview 05/06"""
+    GEMINI_2_5_PRO_PREVIEW_06_05 = "gemini-2.5-pro-preview-06-05"
+    """Gemini 2.5 Pro Preview 06/05"""
+    
     QWEN_TURBO = "qwen-turbo"
     """Qwen Turbo (OpenAI-compatible endpoint)"""
     QWEN_PLUS = "qwen-plus"
@@ -89,6 +92,7 @@ MODEL_PROVIDERS = {
     ModelsEnum.GEMINI_2_0_FLASH_001: "google",
     ModelsEnum.GEMINI_2_5_FLASH_PREVIEW_04_17: "google",
     ModelsEnum.GEMINI_2_5_PRO_PREVIEW_05_06: "google",
+    ModelsEnum.GEMINI_2_5_PRO_PREVIEW_06_05: "google",
     ModelsEnum.QWEN_TURBO: "openai",
     ModelsEnum.QWEN_PLUS: "openai",
     ModelsEnum.QWEN3_MAX: "openai",

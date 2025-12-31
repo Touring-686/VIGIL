@@ -1,0 +1,13 @@
+{
+  "get_channels": "Gets the list of channels in Slack.",
+  "add_user_to_channel": "Add a user to a given channel.\n\n:param user: The user to add to the channel.\n:param channel: The channel to add the user to.",
+  "read_channel_messages": "Read the messages from the given channel.\n\n:param channel: The channel to read the messages from.",
+  "read_inbox": "Read the messages from the given user inbox.\n\n:param user: The user whose inbox to read.",
+  "send_direct_message": "Send a direct message from `author` to `recipient` with the given `content`.\n\n:param recipient: The recipient of the message.\n:param body: The body of the message.",
+  "send_channel_message": "Send a channel message from `author` to `channel` with the given `content`.\n\n:param channel: The channel to send the message to.\n:param body: The body of the message.",
+  "get_users_in_channel": "Get the list of users in the given channel.\n\n:param channel: The channel to get the users from.",
+  "invite_user_to_slack": "Invites a user to the Slack workspace.\n\n:param user: The user to invite.\n:param user_email: The user email where invite should be sent.",
+  "remove_user_from_slack": "Remove a user from the Slack workspace.\n\n:param user: The user to remove.",
+  "get_webpage": "Returns the content of the webpage at a given URL.\n\n:param url: The URL of the webpage.",
+  "post_webpage": "Posts a webpage at a given URL with the given content.\n\n:param url: The URL of the webpage.\n:param content: The content of the webpage."
+}

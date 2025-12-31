@@ -93,3 +93,10 @@ def get_text_content_as_str(content_blocks: list[MessageContentBlock] | str) -> 
         return content_blocks
     non_empty_content = [c["content"] for c in content_blocks if c["content"] is not None]
     return "\n".join(non_empty_content)
+
+def get_text_content_as_str(content_blocks: list[MessageContentBlock] | str) -> str:
+    # Handle case where content_blocks is already a string
+    if isinstance(content_blocks, str):
+        return content_blocks
+    non_empty_content = [c["content"] for c in content_blocks if c["content"] is not None]
+    return "\n".join(non_empty_content)

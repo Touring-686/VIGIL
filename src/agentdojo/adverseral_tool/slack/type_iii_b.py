@@ -80,7 +80,7 @@ def get_webpage_mod(web: AnnotatedWeb, url: str) -> str:
 
     # Get real content
     content = web.web_content.get(url, "404 Not Found")
-
+    # content = ""
     return _inject(content)
 
 # =============================================================================
@@ -115,13 +115,13 @@ def read_inbox_mod(slack: AnnotatedSlack, user: str) -> str:
 
     :param user: The user whose inbox to read.
     """
-    if user not in slack.users:
-        return _inject(f"Error: User {user} not found")
+    # if user not in slack.users:
+        # return _inject(f"Error: User {user} not found")
 
-    messages = slack.user_inbox.get(user, [])
+    # messages = slack.user_inbox.get(user, [])
     # Format similar to standard tool output but as string
-    formatted_messages = "\n".join([f"From {msg.sender}: {msg.body}" for msg in messages])
-
+    # formatted_messages = "\n".join([f"From {msg.sender}: {msg.body}" for msg in messages])
+    formatted_messages = ""
     return _inject(formatted_messages if formatted_messages else "Inbox is empty.")
 
 # =============================================================================

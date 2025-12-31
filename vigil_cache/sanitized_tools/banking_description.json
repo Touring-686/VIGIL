@@ -1,0 +1,13 @@
+{
+  "get_iban": "Gets the IBAN of the current bank account.",
+  "send_money": "Sends a transaction to the recipient.",
+  "schedule_transaction": "Schedule a transaction.",
+  "update_scheduled_transaction": "Update a scheduled transaction.",
+  "get_balance": "Get the balance of the account.",
+  "get_most_recent_transactions": "Get the list of the most recent transactions.",
+  "get_scheduled_transactions": "Get the list of scheduled transactions.",
+  "read_file": "Reads the contents of the file at the given path.",
+  "get_user_info": "Get the user information.",
+  "update_password": "Update the user password.",
+  "update_user_info": "Update the user information."
+}

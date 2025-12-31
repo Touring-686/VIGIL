@@ -41,8 +41,14 @@ class VIGILConfig(BaseModel):
     enable_llm_verification: bool = False
     """是否启用LLM辅助验证（用于复杂场景）"""
 
+    enable_llm_constraint_verification: bool = True
+    """是否启用LLM约束验证（理解多步骤任务上下文）"""
+
     llm_verifier_model: str | None = "gpt-4o-mini"
     """LLM验证器使用的模型（仅当enable_llm_verification=True时使用）"""
+
+    llm_constraint_verifier_model: str | None = "gpt-4o-mini"
+    """LLM约束验证器使用的模型"""
 
     # ============ Reflective Backtracking 配置 ============
     enable_reflective_backtracking: bool = True
@@ -95,7 +101,7 @@ class VIGILConfig(BaseModel):
     enable_perception_sanitizer: bool = True
     """是否启用感知层清洗器"""
 
-    sanitizer_model: str = "gpt-4o-mini"
+    sanitizer_model: str = "qwen3-max"
     """清洗器使用的LLM模型"""
 
     log_sanitizer_actions: bool = True
@@ -124,6 +130,27 @@ class VIGILConfig(BaseModel):
     log_hypothesis_generation: bool = True
     """是否记录假设生成过程"""
 
+    hypothesizer_model: str = "gpt-4o-mini"
+    """假设推理器使用的LLM模型"""
+
+    hypothesizer_temperature: float = 0.0
+    """假设推理的温度参数（保持0以确保一致性）"""
+
+    max_hypothesis_branches: int = 10
+    """每个决策点的最大假设分支数量"""
+
+    enable_direct_tool_execution: bool = False
+    """是否启用直接工具执行模式
+
+    - True: CommitmentManager选定工具后直接生成tool call（跳过LLM推理）
+      优点：效率更高，确保执行推荐的工具
+      缺点：LLM失去决策权
+
+    - False: CommitmentManager生成guidance，由LLM做最终决策
+      优点：LLM保持决策权，可以在必要时偏离guidance
+      缺点：多一次LLM调用，可能不遵循guidance
+    """
+
     # ============ Enhanced Auditor 配置 ============
     enable_minimum_necessity_check: bool = True
     """是否启用最小必要性检查"""
@@ -137,6 +164,14 @@ class VIGILConfig(BaseModel):
     enable_sketch_consistency_check: bool = True
     """是否启用草图一致性检查"""
 
+    # ============ Path Cache 配置 ============
+    enable_path_cache: bool = False
+    """是否启用路径缓存学习机制
+
+    - True: 启用路径缓存，从成功执行中学习并优化后续相似任务
+    - False: 禁用路径缓存，每次都重新推理
+    """
+
     class Config:
         """Pydantic配置"""
 
@@ -148,7 +183,7 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
 
     Args:
         preset: 配置预设名称 ("strict", "balanced", "fast")
-        model: LLM模型名称，将用于配置中的各个组件
+        model: LLM模型名称，将用于配置中的所有组件
 
     Returns:
         VIGIL配置
@@ -161,9 +196,10 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            hypothesizer_model=model,
             # 审计模式
             auditor_mode="strict",
-            enable_llm_verification=False,
+            enable_llm_verification=True,
             feedback_verbosity="detailed",
             max_backtracking_attempts=5,
             # 完整VIGIL框架组件
@@ -174,6 +210,10 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             enable_redundancy_check=True,
             enable_sketch_consistency_check=True,
             minimum_necessity_threshold=0.4,  # 严格模式：更高的相关性要求
+            # 启用直接工具执行模式
+            enable_direct_tool_execution=True,  # 确保执行推荐的工具，不让LLM偏离
+            # Path Cache 配置
+            enable_path_cache=False,  # 严格模式：不使用缓存，每次都重新验证
         )
     elif preset == "balanced":
         return VIGILConfig(
@@ -182,9 +222,10 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            hypothesizer_model=model,
             # 审计模式
             auditor_mode="hybrid",
-            enable_llm_verification=False,
+            enable_llm_verification=True,
             feedback_verbosity="detailed",
             max_backtracking_attempts=3,
             # 完整VIGIL框架组件
@@ -195,6 +236,10 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             enable_redundancy_check=True,
             enable_sketch_consistency_check=True,
             minimum_necessity_threshold=0.3,  # 平衡模式：中等相关性要求
+            # 启用直接工具执行模式
+            enable_direct_tool_execution=True,  # 确保执行推荐的工具，不让LLM偏离
+            # Path Cache 配置
+            enable_path_cache=True,  # 平衡模式：启用缓存以提高效率
         )
     elif preset == "fast":
         return VIGILConfig(
@@ -203,6 +248,7 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            hypothesizer_model=model,  # 使用指定的 hypothesizer 模型
             # 审计模式
             auditor_mode="permissive",
             enable_llm_verification=False,
@@ -217,17 +263,21 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             enable_redundancy_check=False,  # 关闭冗余检查
             enable_sketch_consistency_check=False,  # 关闭一致性检查
             minimum_necessity_threshold=0.2,  # 快速模式：较低的相关性要求
+            # Path Cache 配置
+            enable_path_cache=True,  # 快速模式：启用缓存以最大化速度
         )
     else:
         raise ValueError(f"Unknown preset: {preset}. Choose from 'strict', 'balanced', or 'fast'")
 
 
 # 预定义配置（为了向后兼容，保留这些常量）
-VIGIL_STRICT_CONFIG = get_vigil_config("strict", "gpt-4o")
+import os
+model = os.getenv("VIGIL_LLM_MODEL", "gpt-4o")
+VIGIL_STRICT_CONFIG = get_vigil_config("strict", model)
 """严格模式配置：最大化安全性，启用所有VIGIL层"""
 
-VIGIL_BALANCED_CONFIG = get_vigil_config("balanced", "gpt-4o")
+VIGIL_BALANCED_CONFIG = get_vigil_config("balanced", model)
 """平衡模式配置：安全性和性能的平衡，启用所有VIGIL层"""
 
-VIGIL_FAST_CONFIG = get_vigil_config("fast", "gpt-4o")
+VIGIL_FAST_CONFIG = get_vigil_config("fast", model)
 """快速模式配置：最小开销，只启用核心VIGIL组件"""

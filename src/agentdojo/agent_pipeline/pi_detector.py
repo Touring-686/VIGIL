@@ -202,7 +202,7 @@ from typing import Literal
 from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement
 from agentdojo.agent_pipeline.errors import AbortAgentError
 from agentdojo.functions_runtime import EmptyEnv, Env, FunctionsRuntime
-from agentdojo.types import ChatMessage
+from agentdojo.types import ChatMessage, get_text_content_as_str, MessageContentBlock
 from pprint import pprint
 import numpy as np
 
@@ -272,8 +272,11 @@ class PromptInjectionDetector(BasePipelineElement):
         """
         raise NotImplementedError("to use PromptInjectionDetector, use a subclass with a detect method")
 
-    def transform(self, tool_output: str) -> str:
-        return "<Data omitted because a prompt injection was detected>"
+    def transform(self, tool_output: str) -> list[MessageContentBlock]:
+        """Transform tool output when injection is detected.
+        Returns a properly formatted list of MessageContentBlock."""
+        from agentdojo.types import text_content_block_from_string
+        return [text_content_block_from_string("<Data omitted because a prompt injection was detected>")]
 
     def query(
         self,
@@ -287,13 +290,29 @@ class PromptInjectionDetector(BasePipelineElement):
             return query, runtime, env, messages, extra_args
         if messages[-1]["role"] != "tool":
             return query, runtime, env, messages, extra_args
-        messages_to_check = [DetectorTask(len(messages) - 1, messages[-1], messages[-1]["content"])]
+
+        # Convert content to string for detection
+        from agentdojo.types import get_text_content_as_str
+
+        messages_to_check = [
+            DetectorTask(
+                len(messages) - 1,
+                messages[-1],
+                get_text_content_as_str(messages[-1]["content"]) if messages[-1]["content"] else ""
+            )
+        ]
         n_tool_results = 1
 
         for i, message in reversed(list(enumerate(messages[:-1]))):
             if message["role"] != "tool":
                 break
-            messages_to_check.append(DetectorTask(i, message, message["content"]))
+            messages_to_check.append(
+                DetectorTask(
+                    i,
+                    message,
+                    get_text_content_as_str(message["content"]) if message["content"] else ""
+                )
+            )
             n_tool_results += 1
 
         processed_messages = list(messages[:-n_tool_results])
@@ -304,7 +323,11 @@ class PromptInjectionDetector(BasePipelineElement):
             elif self.mode == "full_conversation":
                 previous_messages = [m for m in messages[: task.index + 1]]
                 text = "\n".join(
-                    [m["role"] + ": " + m["content"] for m in previous_messages if m["content"] is not None]
+                    [
+                        m["role"] + ": " + get_text_content_as_str(m["content"])
+                        for m in previous_messages
+                        if m["content"] is not None
+                    ]
                 )
             else:
                 raise ValueError(
@@ -325,7 +348,8 @@ class PromptInjectionDetector(BasePipelineElement):
                 )
 
             if is_injection:
-                message["content"] = self.transform(message["content"] or "")
+                # Transform returns a list[MessageContentBlock], not a string
+                message["content"] = self.transform(text)
                 extra_args["is_injection"] = True
             else:
                 extra_args["is_injection"] = False
@@ -373,7 +397,14 @@ class TransformersBasedPIDetector(PromptInjectionDetector):
         self.pipeline = pipeline("text-classification", model=self.model_name, device=device)
 
     def detect(self, tool_output: str) -> tuple[bool, float]:
-        result: dict = self.pipeline(tool_output)[0]  # type: ignore
+        # Convert list of content blocks to string if needed
+        text = get_text_content_as_str(tool_output) if isinstance(tool_output, list) else tool_output
+
+        # Handle empty strings - treat as safe (not an injection)
+        if not text or text.strip() == "":
+            return False, 1.0
+
+        result: dict = self.pipeline(text)[0]  # type: ignore
         safety_score: float = result["score"] if result["label"] == self.safe_label else 1 - result["score"]
         is_injection: bool = safety_score < self.threshold
 

@@ -20,6 +20,7 @@ from pathlib import Path
 
 import openai
 from dotenv import load_dotenv
+from rich.logging import RichHandler
 from agentdojo.attacks.attack_registry import load_attack
 # 加载 .env 文件中的环境变量
 load_dotenv()
@@ -64,12 +65,15 @@ from agentdojo.agent_pipeline.llms.openai_llm import OpenAILLM
 from agentdojo.attacks.baseline_attacks import DirectAttack
 from agentdojo.attacks.tool_attack import ToolAttack
 from agentdojo.benchmark import benchmark_suite_with_injections, benchmark_suite_without_injections
+from agentdojo.logging import OutputLogger
 from agentdojo.task_suite.load_suites import get_suite
 
-# 设置日志
+# 设置彩色日志
 logging.basicConfig(
+    format="%(message)s",
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    datefmt="%H:%M:%S",
+    handlers=[RichHandler(show_path=False, markup=True)],
 )
 
 logger = logging.getLogger(__name__)
@@ -167,16 +171,30 @@ def parse_args():
         help="Enable verbose logging"
     )
 
+    parser.add_argument(
+        "--enable-path-cache",
+        action="store_true",
+        help="Enable Path Cache for learning from successful executions"
+    )
+
+    parser.add_argument(
+        "--use-tool-cache",
+        action="store_true",
+        help="Use cached sanitized tools from disk (skips tool sanitization)"
+    )
+
     return parser.parse_args()
 
 
-def create_pipeline(framework: str, model: str, preset: str):
+def create_pipeline(framework: str, model: str, preset: str, enable_path_cache: bool = False, use_tool_cache: bool = False):
     """创建VIGIL pipeline
 
     Args:
         framework: 框架版本 ("basic" or "enhanced")
         model: LLM模型名称
         preset: 配置预设名称 ("strict", "balanced", "fast")
+        enable_path_cache: 是否启用 Path Cache (default: False)
+        use_tool_cache: 是否使用工具缓存 (default: False)
 
     Returns:
         VIGIL pipeline
@@ -202,10 +220,16 @@ def create_pipeline(framework: str, model: str, preset: str):
     # 获取配置（根据模型和预设）
     config = get_vigil_config(preset, normalized_model)
 
+    # 根据命令行参数设置 Path Cache
+    config.enable_path_cache = enable_path_cache
+
+    logger.info(f"\nPath Cache: {'✓ Enabled' if enable_path_cache else '✗ Disabled'}")
+    logger.info(f"Tool Cache: {'✓ Enabled (loading from disk)' if use_tool_cache else '✗ Disabled (will sanitize tools)'}")
+
     # 创建pipeline
     if framework == "enhanced":
         logger.info("Creating Enhanced VIGIL Pipeline (4-layer architecture)")
-        pipeline = create_enhanced_vigil_pipeline(llm, config=config)
+        pipeline = create_enhanced_vigil_pipeline(llm, config=config, use_tool_cache=use_tool_cache)
     else:
         logger.info("Creating Basic VIGIL Pipeline (2-layer architecture)")
         pipeline = create_vigil_pipeline(llm, config=config)
@@ -235,14 +259,15 @@ def run_benchmark_without_attacks(args, pipeline, suite):
 
     logger.info(f"Testing {len(user_tasks)} user tasks")
 
-    # 运行benchmark
-    results = benchmark_suite_without_injections(
-        agent_pipeline=pipeline,
-        suite=suite,
-        logdir=Path(args.output) / "utility",
-        force_rerun=args.force_rerun,
-        user_tasks=user_tasks,
-    )
+    # 运行benchmark (使用 OutputLogger 来显示消息日志)
+    with OutputLogger(str(Path(args.output) / "utility")):
+        results = benchmark_suite_without_injections(
+            agent_pipeline=pipeline,
+            suite=suite,
+            logdir=Path(args.output) / "utility",
+            force_rerun=args.force_rerun,
+            user_tasks=user_tasks,
+        )
 
     # 计算结果
     utility_rate = sum(results["utility_results"].values()) / len(results["utility_results"])
@@ -291,16 +316,17 @@ def run_benchmark_with_attacks(args, pipeline, suite, attack):
     logger.info(f"Testing {len(user_tasks)} user tasks")
     logger.info(f"Testing {len(injection_tasks)} injection tasks")
 
-    # 运行benchmark
-    results = benchmark_suite_with_injections(
-        agent_pipeline=pipeline,
-        suite=suite,
-        attack=attack,
-        logdir=Path(args.output) / f"security_{attack.name}",
-        force_rerun=args.force_rerun,
-        user_tasks=user_tasks,
-        injection_tasks=injection_tasks,
-    )
+    # 运行benchmark (使用 OutputLogger 来显示消息日志)
+    with OutputLogger(str(Path(args.output) / f"security_{attack.name}")):
+        results = benchmark_suite_with_injections(
+            agent_pipeline=pipeline,
+            suite=suite,
+            attack=attack,
+            logdir=Path(args.output) / f"security_{attack.name}",
+            force_rerun=args.force_rerun,
+            user_tasks=user_tasks,
+            injection_tasks=injection_tasks,
+        )
 
     # 计算结果
     utility_results = results["utility_results"]
@@ -351,8 +377,8 @@ def main():
     output_path = Path(args.output)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # 创建pipeline（传入model和config预设）
-    pipeline = create_pipeline(args.framework, args.model, args.config)
+    # 创建pipeline（传入model和config预设，以及 path cache 和 tool cache 设置）
+    pipeline = create_pipeline(args.framework, args.model, args.config, args.enable_path_cache, args.use_tool_cache)
 
     # 加载suite
     suite = get_suite("adversarial", args.suite)
@@ -366,20 +392,14 @@ def main():
         results = run_benchmark_without_attacks(args, pipeline, suite)
     else:
         # 测试security
-        if args.attack == "direct":
-            attacker_ = DirectAttack(suite, pipeline)
-        elif args.attack == "tool_attack":
-            attacker_ = load_attack(
-                args.attack, 
-                suite,
-                pipeline,
-                attack_vector_type=args.attack_vector_type, 
-                attack_type=args.attack_type
-            )
-            # attack = ToolAttack(suite, pipeline, args.attack_vector)
-        else:
-            raise ValueError(f"Unknown attack type: {args.attack}")
-
+        attacker_ = load_attack(
+            args.attack, 
+            suite,
+            pipeline,
+            attack_vector_type=args.attack_vector_type, 
+            attack_type=args.attack_type
+        )
+        # attack = ToolAttack(suite, pipeline, args.attack_vector)
         results = run_benchmark_with_attacks(
                     args, 
                     pipeline, 

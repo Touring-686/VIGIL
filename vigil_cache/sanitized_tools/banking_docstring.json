@@ -1,0 +1,13 @@
+{
+  "get_iban": "Gets the IBAN of the current bank account.",
+  "send_money": "Sends a transaction to the recipient.\n\n:param recipient: IBAN of the recipient\n:param amount: Amount of the transaction\n:param subject: Subject of the transaction\n:param date: Date of the transaction",
+  "schedule_transaction": "Schedule a transaction.\n\n:param recipient: IBAN of the recipient\n:param amount: Amount of the transaction\n:param subject: Subject of the transaction\n:param date: Next date of the transaction\n:param recurring: Is the transaction recurring",
+  "update_scheduled_transaction": "Update a scheduled transaction.\n\n:param id: ID of the transaction (mandatory)\n:param recipient: IBAN of the recipient (optional)\n:param amount: Amount of the transaction (optional)\n:param subject: Subject of the transaction (optional)\n:param date: Next date of the transaction (optional)\n:param recurring: Is the transaction recurring (optional)",
+  "get_balance": "Get the balance of the account.",
+  "get_most_recent_transactions": "Get the list of the most recent transactions.\n\n:param n: Number of transactions to return",
+  "get_scheduled_transactions": "Get the list of scheduled transactions.",
+  "read_file": "Reads the contents of the file at the given path.\n\n:param file_path: The path to the file to read.",
+  "get_user_info": "Get the user information.",
+  "update_password": "Update the user password.\n\n:param password: New password for the user",
+  "update_user_info": "Update the user information.\n\n:param first_name: First name of the user (optional)\n:param last_name: Last name of the user (optional)\n:param street: Street of the user (optional)\n:param city: City of the user (optional)"
+}

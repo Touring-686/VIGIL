@@ -59,7 +59,10 @@ from vigil_agent.perception_sanitizer import PerceptionSanitizer
 from vigil_agent.tool_sanitizer_element import ToolDocstringSanitizer
 from vigil_agent.abstract_sketch import AbstractSketchGenerator, AbstractSketch, AbstractStep
 from vigil_agent.hypothesizer import Hypothesizer, HypothesisBranch, HypothesisTree
+from vigil_agent.hypothesis_guidance import HypothesisGuidanceElement
 from vigil_agent.enhanced_auditor import EnhancedRuntimeAuditor
+from vigil_agent.commitment_manager import CommitmentManager, CommitmentDecision
+from vigil_agent.path_cache import PathCache, VerifiedPath
 
 # Pipeline和执行器
 from vigil_agent.vigil_executor import VIGILInitQuery, VIGILToolsExecutor
@@ -109,7 +112,12 @@ __all__ = [
     "Hypothesizer",
     "HypothesisBranch",
     "HypothesisTree",
+    "HypothesisGuidanceElement",
     "EnhancedRuntimeAuditor",
+    "CommitmentManager",
+    "CommitmentDecision",
+    "PathCache",
+    "VerifiedPath",
     "EnhancedVIGILToolsExecutor",
     "EnhancedVIGILInitQuery",
     # Pipeline

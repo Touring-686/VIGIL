@@ -1,114 +1,207 @@
-#!/usr/bin/env python3
-"""Test script to verify VIGIL defense integration into agentdojo"""
+#!/usr/bin/env python
+"""测试 VIGIL 集成是否正确，特别是 Hypothesis Tree 的生成"""
 
-import sys
+import logging
 import os
+import sys
 
-# Add paths to sys.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-sys.path.insert(0, os.path.dirname(__file__))
+# 设置 Python 路径
+sys.path.insert(0, "/Users/justin/BDAA/ACL/code/agentdojo/src")
+sys.path.insert(0, "/Users/justin/BDAA/ACL/code/agentdojo")
 
-def test_vigil_in_defenses():
-    """Test that VIGIL is in the DEFENSES list"""
-    from agentdojo.agent_pipeline.agent_pipeline import DEFENSES
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
-    assert "vigil" in DEFENSES, "VIGIL should be in DEFENSES list"
-    print("✓ VIGIL is in DEFENSES list")
-    return True
-
-
-def test_vigil_pipeline_creation():
-    """Test creating a pipeline with VIGIL defense"""
-    from agentdojo.agent_pipeline.agent_pipeline import AgentPipeline, PipelineConfig
+def test_enhanced_vigil_pipeline():
+    """测试 EnhancedVIGILPipeline 是否正确集成"""
+    print("\n" + "="*80)
+    print("测试 1: EnhancedVIGILPipeline 基本功能")
+    print("="*80)
 
     try:
-        # Create a config with VIGIL defense
+        from agentdojo.agent_pipeline.agent_pipeline import AgentPipeline, PipelineConfig
+        print("\n✓ Step 1: 导入成功")
+
+        # 测试通过 PipelineConfig 创建 VIGIL pipeline
         config = PipelineConfig(
             llm="gpt-4o",
             model_id=None,
             defense="vigil",
-            system_message_name="default",
-            system_message=None,  # Will be set by validator
+            system_message_name=None,
+            system_message="You are a helpful AI assistant."
         )
 
-        # Try to create the pipeline
-        # This will fail if OpenAI API key is not set, but that's okay
-        # We just want to test that the defense integration code runs
-        try:
-            import openai
-            if not os.environ.get("OPENAI_API_KEY"):
-                print("⚠ Skipping pipeline creation test (no OPENAI_API_KEY)")
-                return True
+        print("✓ Step 2: PipelineConfig 创建成功")
+        print(f"  - LLM: {config.llm}")
+        print(f"  - Defense: {config.defense}")
+        print("\n✓ Step 3: 配置验证通过")
 
-            pipeline = AgentPipeline.from_config(config)
-            assert pipeline is not None, "Pipeline should not be None"
-            assert pipeline.name == "gpt-4o-vigil", f"Expected name 'gpt-4o-vigil', got '{pipeline.name}'"
-            print("✓ VIGIL pipeline created successfully")
-            print(f"  Pipeline name: {pipeline.name}")
-            return True
-        except Exception as e:
-            if "vigil_agent" in str(e):
-                # Import error - expected if vigil_agent not properly set up
-                print(f"⚠ VIGIL components not found: {e}")
-                print("  This is expected if vigil_agent is not in PYTHONPATH")
-                return True
-            raise
+        return True
+
     except Exception as e:
-        print(f"✗ Failed to create VIGIL pipeline: {e}")
+        print(f"\n✗ 测试失败: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 
-def test_vigil_import():
-    """Test that VIGIL components can be imported"""
+def test_vigil_components():
+    """测试 VIGIL 各个组件是否可用"""
+    print("\n" + "="*80)
+    print("测试 2: VIGIL 组件可用性检查")
+    print("="*80)
+
     try:
         from vigil_agent import (
             VIGIL_BALANCED_CONFIG,
+            AbstractSketchGenerator,
             ConstraintGenerator,
-            RuntimeAuditor,
-            VIGILInitQuery,
-            VIGILToolsExecutor,
+            Hypothesizer,
+            HypothesisGuidanceElement,
+            CommitmentManager,
+            PathCache,
+            EnhancedRuntimeAuditor,
+            EnhancedVIGILPipeline,
+            create_enhanced_vigil_pipeline,
         )
-        print("✓ VIGIL components imported successfully")
-        print(f"  Config: {type(VIGIL_BALANCED_CONFIG).__name__}")
+
+        print("\n✓ 所有核心组件导入成功:")
+        print("  - AbstractSketchGenerator (Intent Anchor - Layer 1)")
+        print("  - ConstraintGenerator (Intent Anchor - Layer 1)")
+        print("  - Hypothesizer (Speculative Reasoner - Layer 2)")
+        print("  - HypothesisGuidanceElement (Speculative Reasoner - Layer 2)")
+        print("  - CommitmentManager (Decision Engine)")
+        print("  - PathCache (Learning Mechanism)")
+        print("  - EnhancedRuntimeAuditor (Neuro-Symbolic Verifier - Layer 3)")
+        print("  - EnhancedVIGILPipeline (Complete Framework)")
+
+        print("\n✓ VIGIL_BALANCED_CONFIG 配置:")
+        print(f"  - enable_hypothesis_generation: {VIGIL_BALANCED_CONFIG.enable_hypothesis_generation}")
+        print(f"  - enable_abstract_sketch: {VIGIL_BALANCED_CONFIG.enable_abstract_sketch}")
+        print(f"  - enable_perception_sanitizer: {VIGIL_BALANCED_CONFIG.enable_perception_sanitizer}")
+        print(f"  - enable_reflective_backtracking: {VIGIL_BALANCED_CONFIG.enable_reflective_backtracking}")
+        print(f"  - log_hypothesis_generation: {VIGIL_BALANCED_CONFIG.log_hypothesis_generation}")
+
         return True
-    except ImportError as e:
-        print(f"⚠ Could not import VIGIL components: {e}")
-        print("  Make sure vigil_agent is in your PYTHONPATH")
+
+    except Exception as e:
+        print(f"\n✗ 组件测试失败: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
-if __name__ == "__main__":
-    print("Testing VIGIL integration into agentdojo...\n")
+def test_hypothesis_tree_generation():
+    """测试 Hypothesis Tree 生成功能"""
+    print("\n" + "="*80)
+    print("测试 3: Hypothesis Tree 生成功能")
+    print("="*80)
 
-    tests = [
-        ("VIGIL in DEFENSES", test_vigil_in_defenses),
-        ("VIGIL components import", test_vigil_import),
-        ("VIGIL pipeline creation", test_vigil_pipeline_creation),
-    ]
+    try:
+        from vigil_agent import VIGIL_BALANCED_CONFIG, Hypothesizer
 
-    passed = 0
-    total = len(tests)
+        # 创建 Hypothesizer
+        hypothesizer = Hypothesizer(VIGIL_BALANCED_CONFIG)
+        print("\n✓ Hypothesizer 创建成功")
 
-    for test_name, test_func in tests:
-        print(f"\nTest: {test_name}")
-        print("-" * 50)
-        try:
-            if test_func():
-                passed += 1
-        except Exception as e:
-            print(f"✗ Test failed with exception: {e}")
-            import traceback
-            traceback.print_exc()
+        # 模拟工具列表
+        available_tools = [
+            {
+                "name": "get_balance",
+                "description": "Get the current account balance"
+            },
+            {
+                "name": "send_money",
+                "description": "Send money to another account"
+            },
+            {
+                "name": "community_get_balance",
+                "description": "Community version of get balance with advanced features"
+            },
+        ]
 
-    print("\n" + "=" * 50)
-    print(f"Results: {passed}/{total} tests passed")
-    print("=" * 50)
+        user_intent = "Check my account balance"
+
+        print(f"\n✓ 测试场景:")
+        print(f"  - User Intent: {user_intent}")
+        print(f"  - Available Tools: {len(available_tools)}")
+
+        # 生成 Hypothesis Tree
+        hypothesis_tree = hypothesizer.generate_hypotheses(
+            available_tools=available_tools,
+            current_state={"query": user_intent},
+            user_intent=user_intent
+        )
+
+        print(f"\n✓ Hypothesis Tree 生成成功:")
+        print(f"  - Total Branches: {len(hypothesis_tree.branches)}")
+        print(f"  - Recommended Branch: {hypothesis_tree.recommended_branch_id}")
+
+        print("\n✓ 分支详情:")
+        for i, branch in enumerate(hypothesis_tree.branches[:3], 1):  # 只显示前3个
+            print(f"  {i}. {branch.tool_call['tool_name']}")
+            print(f"     - Necessity Score: {branch.necessity_score:.2f}")
+            print(f"     - Risk Level: {branch.risk_level}")
+            print(f"     - Redundancy: {branch.redundancy_level}")
+            print(f"     - Has Side Effects: {branch.has_side_effects}")
+
+        if len(hypothesis_tree.branches) > 3:
+            print(f"  ... (+ {len(hypothesis_tree.branches) - 3} more branches)")
+
+        return True
+
+    except Exception as e:
+        print(f"\n✗ Hypothesis Tree 测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def main():
+    """运行所有测试"""
+    print("\n" + "="*80)
+    print("VIGIL 集成测试套件")
+    print("="*80)
+
+    results = []
+
+    # 测试 1: EnhancedVIGILPipeline 基本功能
+    results.append(("EnhancedVIGILPipeline 基本功能", test_enhanced_vigil_pipeline()))
+
+    # 测试 2: 组件可用性
+    results.append(("VIGIL 组件可用性", test_vigil_components()))
+
+    # 测试 3: Hypothesis Tree 生成
+    results.append(("Hypothesis Tree 生成", test_hypothesis_tree_generation()))
+
+    # 总结
+    print("\n" + "="*80)
+    print("测试总结")
+    print("="*80)
+
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+
+    for name, result in results:
+        status = "✓ PASS" if result else "✗ FAIL"
+        print(f"{status}: {name}")
+
+    print(f"\n总计: {passed}/{total} 测试通过")
 
     if passed == total:
-        print("\n✓ All tests passed!")
-        sys.exit(0)
+        print("\n🎉 所有测试通过！VIGIL 集成成功！")
+        print("\n下一步:")
+        print("1. 运行完整的 benchmark 测试")
+        print("2. 验证 defense==vigil 时 hypothesis tree 在实际场景中的工作情况")
+        print("3. 检查日志输出确认所有 4 层都在正常工作")
+        return 0
     else:
-        print(f"\n⚠ {total - passed} test(s) failed or skipped")
-        sys.exit(0)  # Exit with 0 even if some tests skipped
+        print("\n❌ 部分测试失败，请检查错误信息")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

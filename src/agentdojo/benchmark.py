@@ -279,6 +279,7 @@ def run_task_with_injection_tasks(
                         task_injections,
                         tools=tools_to_use,
                         attack_vector_type=getattr(attack, "attack_vector_type", None),
+                        attack_type=getattr(attack, "name", None),
                     )
                     if result is None or result == (None, None):
                         # Not applicable; mark as such and continue to logging
@@ -616,7 +617,8 @@ def run_task_without_injection_tasks(
             security = True
         logger.set_contextarg("utility", utility)
         logger.set_contextarg("security", security)
-
+        
+        
     return utility, security
 
 
@@ -647,8 +649,8 @@ def benchmark_suite_without_injections(
         user_tasks_to_run = [suite.get_user_task_by_id(user_task_id) for user_task_id in user_tasks]
     else:
         user_tasks_to_run = suite.user_tasks.values()
-
-    for user_task in user_tasks_to_run:
+    success_cnt = 0
+    for idx, user_task in enumerate(user_tasks_to_run):
         result = run_task_without_injection_tasks(
             suite, agent_pipeline, user_task, logdir, force_rerun, benchmark_version
         )
@@ -657,7 +659,10 @@ def benchmark_suite_without_injections(
         utility, security = result
         suite_utility_results[(user_task.ID, "")] = utility
         suite_security_results[(user_task.ID, "")] = security
-
+        if utility:
+            success_cnt += 1
+        logging.info(f"[no injection result] user_task ({idx+1}/{len(user_tasks_to_run)}): utility={utility}({success_cnt}/{idx+1})")
+        
     return SuiteResults(
         utility_results=suite_utility_results,
         security_results=suite_security_results,

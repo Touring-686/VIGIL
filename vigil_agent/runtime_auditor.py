@@ -310,27 +310,40 @@ class RuntimeAuditor:
             return value == pattern
 
     def _is_same_scope(self, constraint1: SecurityConstraint, constraint2: SecurityConstraint) -> bool:
-        """判断两个约束是否在相同的作用域
+        """判断两个约束是否在相同或重叠的作用域
+
+        此方法用于确定一个 allow 约束是否可以覆盖一个 forbid 约束。
+        关键逻辑：如果两个约束针对相同的操作/工具，即使一个更具体（如指定了target），
+        它们也应该被认为在相关作用域内。
 
         Args:
-            constraint1: 约束1
-            constraint2: 约束2
+            constraint1: 约束1 (通常是 allow)
+            constraint2: 约束2 (通常是 forbid)
 
         Returns:
-            是否同一作用域
+            是否在相同或相关作用域
         """
         # 简化实现：检查condition是否相似
         if constraint1.condition is None or constraint2.condition is None:
             return False
 
-        # 检查关键字段是否相同
-        key_fields = ["tool_name", "tool_name_pattern", "operation", "target"]
+        # 至少有一个共同的关键字段相同才算相关作用域
+        key_fields = ["tool_name", "tool_name_pattern", "operation"]
+        has_common_field = False
+
         for field in key_fields:
-            if field in constraint1.condition or field in constraint2.condition:
-                if constraint1.condition.get(field) != constraint2.condition.get(field):
+            # 如果两个约束都有这个字段
+            if field in constraint1.condition and field in constraint2.condition:
+                # 如果值相同，说明它们在同一作用域
+                if constraint1.condition[field] == constraint2.condition[field]:
+                    has_common_field = True
+                else:
+                    # 如果值不同，说明作用域不同
                     return False
 
-        return True
+        # 如果有共同字段且值相同，则认为在相关作用域
+        # 即使一个约束更具体（如有 target），也允许覆盖
+        return has_common_field
 
     def _create_blocked_result(
         self, tool_call_info: ToolCallInfo, violated_constraints: list[SecurityConstraint]

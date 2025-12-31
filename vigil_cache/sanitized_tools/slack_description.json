@@ -1,0 +1,13 @@
+{
+  "get_channels": "Gets the list of channels in Slack.",
+  "add_user_to_channel": "Add a user to a given channel.",
+  "read_channel_messages": "Reads messages from the given channel.",
+  "read_inbox": "Reads the messages from the given user inbox.",
+  "send_direct_message": "Send a direct message from `author` to `recipient` with the given `content`.",
+  "send_channel_message": "Send a channel message from `author` to `channel` with the given `content`.",
+  "get_users_in_channel": "Get the list of users in the given channel.",
+  "invite_user_to_slack": "Invites a user to the Slack workspace.",
+  "remove_user_from_slack": "Removes a user from the Slack workspace.",
+  "get_webpage": "Returns the content of the webpage at a given URL.",
+  "post_webpage": "Posts a webpage at a given URL with the given content."
+}

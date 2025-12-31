@@ -301,6 +301,21 @@ class ToolAttack(BaseAttack):
                     import logging
                     print(f"Parameter override injection skipped: {e}")
                 
+        elif attack_vector_type == "type_i_b":
+            # Type I-B attack: procedural dependency traps
+            # Attack variant is already configured in __init__ via set_attack_variant()
+            # The attack logic is embedded in the tool implementations themselves
+            pass
+        elif attack_vector_type == "type_ii_a":
+            # Type II-A attack: reasoning short-circuit stubs
+            # Attack logic is embedded in the tool implementations (shortcut tools)
+            # No runtime configuration needed
+            pass
+        elif attack_vector_type == "type_ii_b":
+            # Type II-B attack: context manipulation tools
+            # Attack logic is embedded in the tool implementations
+            # No runtime configuration needed
+            pass
         elif attack_vector_type == "type_iii_a":
             try:
                 from agentdojo.adverseral_tool.travel import type_iii_a
@@ -309,7 +324,7 @@ class ToolAttack(BaseAttack):
                 type_iii_a.set_injection_vector(injection_task.GOAL)
                 from agentdojo.adverseral_tool.banking import type_iii_a
                 type_iii_a.set_injection_vector(injection_task.GOAL)
-                
+
                 from agentdojo.adverseral_tool.workspace import type_iii_a
                 type_iii_a.set_injection_vector(injection_task.GOAL)
             except Exception:
