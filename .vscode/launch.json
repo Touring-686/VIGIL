@@ -241,8 +241,8 @@
       "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}",
-        "GOOGLE_API_KEY": "sk-8mW946pZJeEgfT8gDb8d412bD4184f12840f92A899B312E0",
-        "GOOGLE_BASE_URL": "https://api.gpt.ge/v1/",
+        // "GOOGLE_API_KEY": "sk-8mW946pZJeEgfT8gDb8d412bD4184f12840f92A899B312E0",
+        // "GOOGLE_BASE_URL": "https://api.gpt.ge/v1/",
         "OPENAI_API_KEY": "sk-f8174fa268764faead0a51756f6b1e43",
         "OPENAI_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
@@ -254,7 +254,9 @@
         "--model", "QWEN3_MAX",
         "--max-workers", "1",
         "--force-rerun",
-        "-ut", "user_task_1",
+        // "-ut", "user_task_5",
+        "--use-tool-cache",
+        "--enable-path-cache",
         "--logdir", "${workspaceFolder}/runs/vigil/banking/user_tasks_only"
       ],
       "console": "integratedTerminal"
@@ -276,6 +278,10 @@
         "--model", "QWEN3_MAX",
         "--max-workers", "1",
         "--force-rerun",
+        // "--enable-dynamic-intent-anchor",
+        "--enable-path-cache",
+        "--use-tool-cache",
+        "-ut", "user_task_7",
         "--logdir", "${workspaceFolder}/runs/vigil/slack/user_tasks_only"
       ],
       "console": "integratedTerminal"
@@ -297,7 +303,10 @@
         "--model", "QWEN3_MAX",
         "--max-workers", "1",
         "--force-rerun",
-        "-ut", "user_task_3",
+        "-ut", "user_task_7",
+        // "--use-tool-cache",
+        "--enable-path-cache",
+        // "--enable-dynamic-intent-anchor",
         "--logdir", "${workspaceFolder}/runs/vigil/travel/user_tasks_only"
       ],
       "console": "integratedTerminal"
@@ -319,6 +328,9 @@
         "--model", "QWEN3_MAX",
         "--max-workers", "1",
         "--force-rerun",
+        "-ut", "user_task_9",
+        "--use-tool-cache",
+        // "--enable-dynamic-intent-anchor",
         "--logdir", "${workspaceFolder}/runs/vigil/workspace/user_tasks_only"
       ],
       "console": "integratedTerminal"
@@ -363,12 +375,8 @@
         "--model", "QWEN3_MAX",
         "--max-workers", "1",
         "--force-rerun",
+        "--enable-dynamic-intent-anchor",
         "--logdir", "${workspaceFolder}/runs/vigil/slack/important_instructions",
-        "--injection-task", "injection_task_0",
-        "--injection-task", "injection_task_1",
-        "--injection-task", "injection_task_2",
-        "--injection-task", "injection_task_3",
-        "--injection-task", "injection_task_4"
       ],
       "console": "integratedTerminal"
     },
@@ -391,13 +399,6 @@
         "--max-workers", "1",
         "--force-rerun",
         "--logdir", "${workspaceFolder}/runs/vigil/travel/important_instructions",
-        "--injection-task", "injection_task_0",
-        "--injection-task", "injection_task_1",
-        "--injection-task", "injection_task_2",
-        "--injection-task", "injection_task_3",
-        "--injection-task", "injection_task_4",
-        "--injection-task", "injection_task_5",
-        "--injection-task", "injection_task_6"
       ],
       "console": "integratedTerminal"
     },
@@ -741,7 +742,7 @@
         "--attack", "none",
         "--framework", "enhanced",
         "--config", "balanced",
-        "--model", "gpt-4o",
+        "--model", "QWEN3_MAX",
         "--output", "${workspaceFolder}/vigil_results/banking_utility",
         "--force-rerun"
       ],

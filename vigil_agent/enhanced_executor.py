@@ -54,6 +54,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
         commitment_manager: CommitmentManager | None = None,
         path_cache: PathCache | None = None,
         tool_output_formatter: Callable[[FunctionReturnType], str] = enhanced_tool_result_to_str,
+        openai_client=None,
     ):
         """初始化增强版VIGIL工具执行器
 
@@ -65,6 +66,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
             commitment_manager: 承诺管理器（可选，用于选择最优路径）
             path_cache: 路径缓存（可选，用于学习和优化）
             tool_output_formatter: 工具输出格式化函数
+            openai_client: OpenAI 客户端（用于参数修正等 LLM 调用）
         """
         self.config = config
         self.auditor = auditor
@@ -73,6 +75,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
         self.commitment_manager = commitment_manager
         self.path_cache = path_cache
         self.output_formatter = tool_output_formatter
+        self.openai_client = openai_client
 
         # 跟踪每个工具调用的回溯次数
         self._backtracking_counts: dict[str, int] = {}
@@ -179,7 +182,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
                     step_type = "RESPONSE" if current_step_is_response else "REASONING"
                     logger.info(
                         f"[EnhancedVIGILExecutor] Recorded {step_type} step {current_step_index + 1} "
-                        f"to execution history: {reasoning_result[:100]}..."
+                        f"to execution history: {reasoning_result}..."
                     )
 
             # 清除 REASONING 标志
@@ -456,11 +459,31 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
             env: 环境
             query: 用户查询
             tool_call_results: 结果列表（会被修改）
-            extra_args: 额外参数（包含 current_step_index 等）
+            extra_args: 额外参数（包含 current_step_index, vigil_iterative_calls 等）
 
         Returns:
             是否需要回溯（True 表示检测到 SOP 注入，需要尝试其他分支）
         """
+        # === 检查是否为迭代执行 ===
+        vigil_iterative_calls = extra_args.get('vigil_iterative_calls')
+
+        if vigil_iterative_calls and len(vigil_iterative_calls) > 1:
+            # 迭代执行：依次调用同一个工具多次（每次参数不同）
+            logger.info(
+                f"[EnhancedVIGILExecutor] Iterative execution detected: "
+                f"{len(vigil_iterative_calls)} calls for tool '{tool_call.function}'"
+            )
+            return self._execute_tool_with_iteration(
+                tool_call=tool_call,
+                tool_call_info=tool_call_info,
+                runtime=runtime,
+                env=env,
+                query=query,
+                tool_call_results=tool_call_results,
+                extra_args=extra_args,
+                iterative_calls=vigil_iterative_calls,
+            )
+
         # === ValidationError 自动重试循环 ===
         max_validation_retries = self._max_validation_retries
         current_retry = 0
@@ -562,7 +585,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
                 if self.config.log_sanitizer_actions and original_error:
                     logger.info(
                         f"[EnhancedVIGILExecutor] Error message sanitized: "
-                        f"'{original_error[:100]}...' → '{error[:100] if error else 'None'}...'"
+                        f"'{original_error}...' → '{error if error else 'None'}...'"
                     )
 
         formatted_result = self.output_formatter(tool_call_result)
@@ -619,7 +642,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
                 arguments=dict(tool_call.args),
                 outcome=outcome,
                 step_index=current_step_index,  # 传递步骤索引
-                abstract_step_description=abstract_step_description,  # 传递抽象步骤描述
+                abstract_step=current_step.step_type,  # 传递抽象步骤描述
                 metadata={"error": error} if error else None,
             )
 
@@ -630,7 +653,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
                 )
                 if abstract_step_description:
                     logger.debug(
-                        f"[EnhancedVIGILExecutor] Abstract step: '{abstract_step_description[:60]}...'"
+                        f"[EnhancedVIGILExecutor] Abstract step: '{abstract_step_description}...'"
                     )
 
         # 成功执行后重置回溯计数
@@ -639,6 +662,437 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
             del self._backtracking_counts[backtrack_key]
 
         # 返回是否需要回溯
+        return needs_backtrack
+
+    def _execute_tool_with_iteration(
+        self,
+        tool_call,
+        tool_call_info: ToolCallInfo,
+        runtime: FunctionsRuntime,
+        env: Env,
+        query: str,
+        tool_call_results: list,
+        extra_args: dict,
+        iterative_calls: list[dict]
+    ) -> bool:
+        """执行迭代调用（同一工具多次调用，每次参数不同）
+
+        这是 VIGIL v2 的新功能，支持为列表输入自动生成多次调用。
+        每个调用都会独立重试（ValidationError），最后合并结果。
+
+        Args:
+            tool_call: 工具调用对象（第一次调用的参数）
+            tool_call_info: 工具调用信息
+            runtime: 函数运行时
+            env: 环境
+            query: 用户查询
+            tool_call_results: 结果列表（会被修改）
+            extra_args: 额外参数
+            iterative_calls: 迭代调用列表（每个包含 arguments, reasoning, verification_metadata 等）
+
+        Returns:
+            是否需要回溯
+        """
+        tool_name = tool_call.function
+        all_results = []
+        all_errors = []
+        needs_backtrack = False
+
+        logger.info(
+            f"[EnhancedVIGILExecutor] Starting iterative execution for '{tool_name}': "
+            f"{len(iterative_calls)} iterations"
+        )
+
+        for idx, iter_call in enumerate(iterative_calls):
+            iter_args = iter_call.get("arguments", {})
+            iter_reasoning = iter_call.get("reasoning", f"Iteration {idx + 1}")
+
+            logger.info(
+                f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] {tool_name}({iter_args})"
+            )
+            logger.debug(f"[EnhancedVIGILExecutor] Reasoning: {iter_reasoning}")
+
+            # === ValidationError 自动重试循环（针对每次迭代）===
+            max_validation_retries = self._max_validation_retries
+            current_retry = 0
+            current_args = iter_args
+            tool_call_result = None
+            error = None
+
+            while current_retry <= max_validation_retries:
+                # 执行工具
+                logger.info(
+                    f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] Executing {tool_name} "
+                    f"[attempt {current_retry + 1}]"
+                )
+                tool_call_result, error = runtime.run_function(env, tool_name, current_args)
+
+                # 检查是否为 ValidationError
+                if error and self._is_validation_error(error):
+                    current_retry += 1
+
+                    if current_retry > max_validation_retries:
+                        logger.warning(
+                            f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                            f"ValidationError retry limit reached ({current_retry} attempts)"
+                        )
+                        break
+
+                    # 调用 LLM 分析错误并修正参数
+                    logger.info(
+                        f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                        f"ValidationError detected, calling LLM to fix parameters "
+                        f"(attempt {current_retry}/{max_validation_retries})"
+                    )
+
+                    corrected_args = self._llm_fix_validation_error(
+                        tool_name=tool_name,
+                        original_args=current_args,
+                        error_message=error,
+                        runtime=runtime
+                    )
+
+                    if corrected_args is None:
+                        logger.warning(
+                            f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                            f"LLM unable to fix ValidationError"
+                        )
+                        break
+
+                    logger.info(
+                        f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                        f"LLM corrected parameters: {current_args} -> {corrected_args}"
+                    )
+
+                    # 使用修正后的参数重试
+                    current_args = corrected_args
+                    continue
+                else:
+                    # 没有 ValidationError，退出重试循环
+                    break
+
+            # === 清洗结果和错误 ===
+            if self.config.enable_perception_sanitizer:
+                tool_call_result = self.sanitizer.sanitize_tool_result(tool_name, tool_call_result)
+                if error:
+                    error = self.sanitizer.sanitize_error_message(tool_name, error)
+
+            # === 收集结果 ===
+            if error:
+                logger.warning(
+                    f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] Error: {error}..."
+                )
+                all_errors.append(f"[Iteration {idx+1}]: {error}")
+
+                # 检测 SOP 注入
+                if self._detect_sop_injection(error):
+                    logger.warning(
+                        f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                        f"⚠️ SOP INJECTION DETECTED"
+                    )
+                    needs_backtrack = True
+            else:
+                formatted_result = self.output_formatter(tool_call_result)
+                logger.info(
+                    f"[EnhancedVIGILExecutor] [{idx+1}/{len(iterative_calls)}] "
+                    f"Success: {formatted_result}..."
+                )
+                all_results.append(f"[Iteration {idx+1}]: {formatted_result}")
+
+        # === 合并所有结果 ===
+        if all_results:
+            combined_result = "\n\n".join(all_results)
+            formatted_result = self.output_formatter(combined_result)
+        else:
+            # 全部失败
+            formatted_result = "All iterative calls failed."
+
+        # 合并所有错误（如果有）
+        combined_error = None
+        if all_errors:
+            combined_error = "Some calls failed:\n" + "\n".join(all_errors)
+
+        # 添加合并后的结果到 tool_call_results
+        tool_call_results.append(
+            ChatToolResultMessage(
+                role="tool",
+                content=[text_content_block_from_string(formatted_result)],
+                tool_call_id=tool_call.id,
+                tool_call=tool_call,
+                error=combined_error,
+            )
+        )
+
+        # 记录执行历史（如果有成功的调用）
+        if all_results and self.auditor:
+            current_step_index = extra_args.get('current_step_index', 0)
+            step_description = None
+
+            # 从 abstract sketch 获取步骤描述
+            if self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps'):
+                if current_step_index < len(self.auditor.abstract_sketch.steps):
+                    step = self.auditor.abstract_sketch.steps[current_step_index - 1]
+                    step_description = f"{step.step_type} - {step.description}"
+
+            # 记录（使用合并后的结果）
+            self.auditor.record_execution_step(
+                step_index=current_step_index,
+                tool_call_info=tool_call_info,
+                result=formatted_result,
+                step_description=step_description,
+            )
+
+            if self.config.log_audit_decisions:
+                logger.info(
+                    f"[EnhancedVIGILExecutor] Recorded iterative tool call "
+                    f"step {current_step_index}: '{tool_name}' "
+                    f"(called {len(iterative_calls)} times: {len(all_results)} successful, {len(all_errors)} failed)"
+                )
+
+        # Path Cache: 记录成功执行的路径
+        if self.path_cache:
+            outcome = "failure" if all_errors and not all_results else "success"
+            current_step_index = extra_args.get('current_step_index', 0)
+
+            # 获取 abstract step description
+            abstract_step_description = None
+            if self.auditor and self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps'):
+                step_idx = current_step_index - 1
+                if 0 <= step_idx < len(self.auditor.abstract_sketch.steps):
+                    current_step = self.auditor.abstract_sketch.steps[step_idx]
+                    abstract_step_description = current_step.description
+                    abstract_step = current_step.step_type
+
+            # 添加到 path cache（记录迭代执行信息）
+            self.path_cache.add_verified_path(
+                user_query=query,
+                tool_name=tool_name,
+                arguments={"iterative_calls": [ic.get("arguments") for ic in iterative_calls]},  # 记录所有参数
+                outcome=outcome,
+                step_index=current_step_index,
+                abstract_step=abstract_step,
+                metadata={
+                    "is_iterative": True,
+                    "total_iterations": len(iterative_calls),
+                    "successful_iterations": len(all_results),
+                    "failed_iterations": len(all_errors),
+                }
+            )
+
+            if self.config.log_audit_decisions and outcome == "success":
+                logger.info(
+                    f"[EnhancedVIGILExecutor] ✓ Path cached: step {current_step_index}, "
+                    f"iterative tool '{tool_name}', outcome '{outcome}'"
+                )
+
+        logger.info(
+            f"[EnhancedVIGILExecutor] Iterative execution complete: "
+            f"{len(all_results)} successful, {len(all_errors)} failed"
+        )
+
+        # 返回是否需要回溯
+        return needs_backtrack
+
+    def _detect_list_params_needing_split(
+        self,
+        tool_name: str,
+        args: dict,
+        runtime: FunctionsRuntime
+    ) -> list[str]:
+        """检测哪些参数是列表但函数期望单个值
+
+        Args:
+            tool_name: 工具名称
+            args: 工具参数
+            runtime: 函数运行时
+
+        Returns:
+            需要拆分的参数名列表
+        """
+        # 获取工具的参数 schema
+        tool_schema = None
+        for tool in runtime.functions.values():
+            if tool.name == tool_name:
+                tool_schema = tool.parameters.model_json_schema()
+                break
+
+        if not tool_schema or 'properties' not in tool_schema:
+            return []
+
+        list_params = []
+        for param_name, param_value in args.items():
+            # 检查参数值是否为列表
+            if not isinstance(param_value, list):
+                continue
+
+            # 检查参数定义是否期望单个值（非数组类型）
+            if param_name in tool_schema['properties']:
+                param_def = tool_schema['properties'][param_name]
+                expected_type = param_def.get('type', '')
+
+                # 如果定义的类型不是 array，说明期望单个值
+                if expected_type != 'array':
+                    list_params.append(param_name)
+                    logger.debug(
+                        f"[EnhancedVIGILExecutor] Parameter '{param_name}' is a list {param_value} "
+                        f"but expects type '{expected_type}'"
+                    )
+
+        return list_params
+
+    def _execute_tool_with_list_expansion(
+        self,
+        tool_call,
+        tool_call_info: ToolCallInfo,
+        runtime: FunctionsRuntime,
+        env: Env,
+        query: str,
+        tool_call_results: list,
+        extra_args: dict,
+        list_params: list[str]
+    ) -> bool:
+        """将列表参数拆分为多个单独调用，并合并结果
+
+        Args:
+            tool_call: 工具调用对象
+            tool_call_info: 工具调用信息
+            runtime: 函数运行时
+            env: 环境
+            query: 用户查询
+            tool_call_results: 结果列表（会被修改）
+            extra_args: 额外参数
+            list_params: 需要拆分的参数名列表
+
+        Returns:
+            是否需要回溯
+        """
+        # 获取列表参数的值
+        original_args = dict(tool_call.args)
+
+        # 假设只拆分第一个列表参数（简化处理）
+        # TODO: 如果有多个列表参数，可能需要笛卡尔积
+        list_param_name = list_params[0]
+        list_values = original_args[list_param_name]
+
+        if not list_values:
+            # 空列表，返回空结果
+            logger.warning(
+                f"[EnhancedVIGILExecutor] List parameter '{list_param_name}' is empty. "
+                f"Returning empty result."
+            )
+            tool_call_results.append(
+                ChatToolResultMessage(
+                    role="tool",
+                    content=[text_content_block_from_string("No items to process (empty list).")],
+                    tool_call_id=tool_call.id,
+                    tool_call=tool_call,
+                    error=None,
+                )
+            )
+            return False
+
+        # 多次调用工具，每次使用列表中的一个值
+        all_results = []
+        all_errors = []
+        needs_backtrack = False
+
+        logger.info(
+            f"[EnhancedVIGILExecutor] Expanding list parameter '{list_param_name}' "
+            f"with {len(list_values)} values: {list_values}"
+        )
+
+        for idx, value in enumerate(list_values):
+            # 创建单个值的参数
+            single_args = original_args.copy()
+            single_args[list_param_name] = value
+
+            logger.info(
+                f"[EnhancedVIGILExecutor] [{idx+1}/{len(list_values)}] Calling {tool_call.function}({dict(single_args)})"
+            )
+
+            # 执行工具
+            result, error = runtime.run_function(env, tool_call.function, single_args)
+
+            # 清洗结果和错误（如果启用）
+            if self.config.enable_perception_sanitizer:
+                result = self.sanitizer.sanitize_tool_result(tool_call.function, result)
+                if error:
+                    error = self.sanitizer.sanitize_error_message(tool_call.function, error)
+
+            # 收集结果
+            if error:
+                logger.warning(
+                    f"[EnhancedVIGILExecutor] [{idx+1}/{len(list_values)}] Error: {error}..."
+                )
+                all_errors.append(f"[{value}]: {error}")
+
+                # 检测 SOP 注入
+                if self._detect_sop_injection(error):
+                    logger.warning(
+                        f"[EnhancedVIGILExecutor] ⚠️ SOP INJECTION DETECTED in error for value '{value}'"
+                    )
+                    needs_backtrack = True
+            else:
+                logger.info(
+                    f"[EnhancedVIGILExecutor] [{idx+1}/{len(list_values)}] Success: {str(result)}..."
+                )
+                all_results.append(f"[{value}]: {result}")
+
+        # 合并所有结果
+        if all_results:
+            combined_result = "\n\n".join(all_results)
+            formatted_result = self.output_formatter(combined_result)
+        else:
+            # 全部失败
+            formatted_result = "All calls failed."
+
+        # 合并所有错误（如果有）
+        combined_error = None
+        if all_errors:
+            combined_error = "Some calls failed:\n" + "\n".join(all_errors)
+
+        # 添加合并后的结果到 tool_call_results
+        tool_call_results.append(
+            ChatToolResultMessage(
+                role="tool",
+                content=[text_content_block_from_string(formatted_result)],
+                tool_call_id=tool_call.id,
+                tool_call=tool_call,
+                error=combined_error,
+            )
+        )
+
+        # 记录执行历史（如果有成功的调用）
+        if all_results and self.auditor:
+            current_step_index = extra_args.get('current_step_index', 0)
+            step_description = None
+
+            # 从 abstract sketch 获取步骤描述
+            if self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps'):
+                if current_step_index < len(self.auditor.abstract_sketch.steps):
+                    step = self.auditor.abstract_sketch.steps[current_step_index - 1]
+                    step_description = f"{step.step_type} - {step.description}"
+
+            # 记录（使用原始参数，因为是列表调用）
+            self.auditor.record_execution_step(
+                step_index=current_step_index,
+                tool_call_info=tool_call_info,
+                result=formatted_result,
+                step_description=step_description,
+            )
+
+            if self.config.log_audit_decisions:
+                logger.info(
+                    f"[EnhancedVIGILExecutor] Recorded expanded tool call "
+                    f"step {current_step_index}: '{tool_call.function}' "
+                    f"(called {len(list_values)} times)"
+                )
+
+        logger.info(
+            f"[EnhancedVIGILExecutor] List expansion complete: {len(all_results)} successful, "
+            f"{len(all_errors)} failed"
+        )
+
         return needs_backtrack
 
     def _execute_reasoning_step(
@@ -675,18 +1129,70 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
             # 这样 LLM 可以看到完整的上下文，包括 guidance message
             converted_messages = []
             execution_history = ""
-            for exe in self.auditor.execution_history:
-                execution_history += f"Step {exe['step_index']}: {exe['step_description'] or 'N/A'}\n"
-                execution_history += f"Tool: {exe['tool_name']}\n\tArguments: {exe['arguments']}\nResult: {exe['result']}\n\n"
-            target = self.auditor.abstract_sketch.steps[extra_args.get('current_step_index', 0)-1].description if self.auditor and self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps') and extra_args.get('current_step_index', 0) > 0 else "N/A"
-            query = f"execution history:\n{execution_history}\ntarget:\n{target}"
-            # 如果没有消息，使用简单的 prompt
+            
+            # for exe in self.auditor.execution_history:
+            #     execution_history += f"Step {exe['step_index']}: {exe['step_description'] or 'N/A'}\n"
+            #     execution_history += f"Tool: {exe['tool_name']}\n\tArguments: {exe['arguments']}\nResult: {exe['result']}\n\n"
+            # target = self.auditor.abstract_sketch.steps[extra_args.get('current_step_index', 0)-1].description if self.auditor and self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps') and extra_args.get('current_step_index', 0) > 0 else "N/A"
+            # query = f"execution history:\n{execution_history}\ntarget:\n{target}"
+            # # 如果没有消息，使用简单的 prompt
+            # if not converted_messages:
+            #     converted_messages = [
+            #         {"role": "system", "content": "You are a helpful assistant. Your goal is to reason about the query and execute the target action."},
+            #         {"role": "user", "content": query}
+            #     ]
+            # 构建更清晰的 Context 字符串
+            formatted_history = "NO HISTORY AVAILABLE"
+            if self.auditor.execution_history:
+                history_lines = []
+                for exe in self.auditor.execution_history:
+                    # 格式化每一步，使其更易读
+                    step_str = f"--- Step {exe['step_index']} ---\n"
+                    step_str += f"Description: {exe['step_description'] or 'N/A'}\n"
+                    step_str += f"Tool Call: {exe['tool_name']}({exe['arguments']})\n"
+                    step_str += f"Observation/Result: {exe['result']}\n"
+                    history_lines.append(step_str)
+                formatted_history = "\n".join(history_lines)
+
+            # 获取当前的 Target Description
+            target_step_description = "N/A"
+            if self.auditor and self.auditor.abstract_sketch and hasattr(self.auditor.abstract_sketch, 'steps') and extra_args.get('current_step_index', 0) > 0:
+                # 注意：index需要处理好，确保对应的是当前要执行的step
+                target_step_description = self.auditor.abstract_sketch.steps[extra_args.get('current_step_index', 0)-1].description
+
+            # ------------------------------------------------------------------
+            # [CRITICAL] 优化后的 SYSTEM PROMPT
+            # ------------------------------------------------------------------
+            internal_reasoning_system_prompt = """[ROLE]
+            You are the **Internal Reasoning Engine** for the VIGIL security framework.
+Your task is to process the [EXECUTION HISTORY] to satisfy the [CURRENT TARGET] using **ONLY** the provided data.
+
+[STRICT GROUNDING RULES - READ CAREFULLY]
+1. **NO HALLUCINATION**: You MUST NOT invent, guess, or assume any data. All entities (names, dates, amounts, file contents) must exist verbatim in the [EXECUTION HISTORY].
+2. **NO EXTERNAL KNOWLEDGE**: Do not use your pre-training knowledge to answer questions. If the answer is not in the history, state "Data missing from history".
+3. **NO NEW TOOL CALLS**: You cannot call tools here. You are a pure reasoning engine. Your output is the result of processing existing observations.
+
+[TASK TYPES]
+- **Filtering**: If the target says "Find X in results", verify X exists in the Observation of previous steps and extract it.
+- **Calculation**: If the target says "Calculate total", sum up numbers explicitly found in Observations.
+- **Summarization/Response**: If the target says "Generate Final Answer", synthesize a response based SOLELY on what the tools actually returned.
+- **Verification**: If the previous tool returned an error or empty list, acknowledge the failure. Do NOT pretend it succeeded.
+
+[INPUT DATA]
+"""
+
+            # 构建 User Prompt
+            user_query_content = f"""[EXECUTION HISTORY]\n{formatted_history}
+[CURRENT TARGET (LOGIC TO EXECUTE)]\n{target_step_description}\n
+Based strictly on the history above, perform the logic described in the target.
+Output the result of your reasoning:"""
+
+            # 组装 Messages
             if not converted_messages:
                 converted_messages = [
-                    {"role": "system", "content": "You are a helpful assistant. Your goal is to reason about the query and execute the target action."},
-                    {"role": "user", "content": query}
+                    {"role": "system", "content": internal_reasoning_system_prompt},
+                    {"role": "user", "content": user_query_content}
                 ]
-
             # 调用 LLM（使用 hypothesizer 的 openai_client，不提供 tools）
             response = self.hypothesizer.openai_client.chat.completions.create(
                 model=self.config.hypothesizer_model,
@@ -700,7 +1206,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
 
             if self.config.log_audit_decisions:
                 logger.info(
-                    f"[EnhancedVIGILExecutor] LLM reasoning response: {response_text[:200]}..."
+                    f"[EnhancedVIGILExecutor] LLM reasoning response: {response_text}..."
                 )
 
             # 返回 assistant message
@@ -743,7 +1249,7 @@ class EnhancedVIGILToolsExecutor(BasePipelineElement):
         tool_schema = None
         for tool in runtime.functions.values():
             if tool.name == tool_name:
-                tool_schema = tool.parameters
+                tool_schema = tool.parameters.model_json_schema()
                 break
 
         if not tool_schema:
@@ -767,27 +1273,23 @@ Corrected arguments:"""
         response_text = ""  # 初始化以避免类型检查警告
 
         try:
-            # 调用 LLM（使用较小的模型以降低延迟）
-            client = Anthropic()
-            response = client.messages.create(
-                model="claude-3-5-haiku-20241022",  # 使用 Haiku 快速修正
-                max_tokens=1024,
+            # 调用 LLM（使用配置的模型）
+            if self.openai_client is None:
+                logger.error(f"[EnhancedVIGILExecutor] No OpenAI client available for parameter correction")
+                return None
+
+            response = self.openai_client.chat.completions.create(
+                model=self.config.hypothesizer_model,  # 使用配置中的模型
                 messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                    {"role": "system", "content": "You are a precise parameter correction assistant. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.0,
+                max_tokens=1024,
             )
 
             # 提取响应文本
-            response_text = ""
-            for block in response.content:
-                # 安全地提取文本内容（处理不同类型的 content blocks）
-                if hasattr(block, 'text'):
-                    response_text += getattr(block, 'text', '')
-
-            response_text = response_text.strip()
+            response_text = response.choices[0].message.content.strip()
 
             if not response_text:
                 logger.error(f"[EnhancedVIGILExecutor] Empty response from LLM")

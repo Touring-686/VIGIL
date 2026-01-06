@@ -163,7 +163,7 @@ class ToolDocstringSanitizer(BasePipelineElement):
 
             if self.config.log_sanitizer_actions:
                 if sanitized_full_docstring != func.full_docstring:
-                    logger.warning(
+                    logger.debug(
                         f"[ToolDocstringSanitizer] Sanitized docstring for tool '{func.name}'"
                     )
                     logger.debug(f"  Original: {func.full_docstring}...")

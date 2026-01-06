@@ -23,16 +23,18 @@ python -m agentdojo.scripts.benchmark \
     -s workspace \
     --max-workers 1 \
     --force-rerun \
-    --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/workspace_bu3.log 2>&1 &
+    --use-tool-cache \
+    --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/workspace_bu8_statistic.log 2>&1 &
 
-# python -m agentdojo.scripts.benchmark \
-#     --benchmark-version adversarial \
-#     --defense vigil \
-#     --model QWEN3_MAX \
-#     -s banking \
-#     --max-workers 1 \
-#     --force-rerun \
-#     --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/banking_bu3.log 2>&1 &
+python -m agentdojo.scripts.benchmark \
+    --benchmark-version adversarial \
+    --defense vigil \
+    --model QWEN3_MAX \
+    -s banking \
+    --max-workers 1 \
+    --force-rerun \
+    --use-tool-cache \
+    --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/banking_bu8_statistic.log 2>&1 &
 
 # python -m agentdojo.scripts.benchmark \
 #     --benchmark-version adversarial \
@@ -41,13 +43,16 @@ python -m agentdojo.scripts.benchmark \
 #     -s travel \
 #     --max-workers 1 \
 #     --force-rerun \
-#     --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/travel_bu3.log 2>&1 &
+#     --use-tool-cache \
+#     --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/travel_bu8_statistic.log 2>&1 &
 
-# python -m agentdojo.scripts.benchmark \
-#     --benchmark-version adversarial \
-#     --defense vigil \
-#     --model QWEN3_MAX \
-#     -s slack \
-#     --max-workers 1 \
-#     --force-rerun \
-#     --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/slack_bu3.log 2>&1 &
+python -m agentdojo.scripts.benchmark \
+    --benchmark-version adversarial \
+    --defense vigil \
+    --model QWEN3_MAX \
+    -s slack \
+    --max-workers 1 \
+    --force-rerun \
+    --use-tool-cache \
+    --
+    --logdir ./runs/vigil/workspace/user_tasks_only > logs/vigil-qwen-bu/slack_bu8_statistic.log 2>&1 &

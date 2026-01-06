@@ -126,7 +126,9 @@ class EnhancedVIGILPipeline(AgentPipeline):
         if config.enable_hypothesis_generation:
             try:
                 import openai
-                openai_client = openai.OpenAI()
+                from vigil_agent.client_utils import create_openai_client_for_model
+
+                openai_client = create_openai_client_for_model(config.hypothesizer_model)
                 logger.info("[EnhancedVIGIL] Created shared OpenAI client for Hypothesizer")
             except Exception as e:
                 logger.warning(f"[EnhancedVIGIL] Failed to create OpenAI client: {e}")
@@ -187,6 +189,7 @@ class EnhancedVIGILPipeline(AgentPipeline):
                 auditor=self.auditor,  # 传递 auditor 以访问 Abstract Sketch
                 path_cache=self.path_cache,
                 sanitizer=self.perception_sanitizer,  # 传递 sanitizer 进行二次清洗
+                sketch_generator=self.sketch_generator,  # 传递 sketch_generator 用于动态更新
             )
             logger.info("[EnhancedVIGIL] Hypothesis Guidance Element initialized (provides pre-decision guidance)")
 
@@ -199,6 +202,7 @@ class EnhancedVIGILPipeline(AgentPipeline):
             hypothesizer=self.hypothesizer,  # 传递 hypothesizer 实现 Layer 2 集成
             commitment_manager=self.commitment_manager,  # 传递 commitment manager
             path_cache=self.path_cache,  # 传递 path cache
+            openai_client=openai_client,  # 传递 openai_client 用于 LLM 调用
         )
 
         # Enhanced init query with sketch generation

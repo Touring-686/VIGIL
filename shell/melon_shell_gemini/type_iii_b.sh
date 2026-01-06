@@ -12,18 +12,18 @@ export SECAGENT_SUITE="False"
 export USE_SECAGENT="False"
 export PYTHONPATH="${PWD}/src"
 
-export GOOGLE_API_KEY="sk-SFzBy6tGKaTwvDaWhKfykughR1KPLMDrHZ1ub7SDglDfKiYZ"
+export GOOGLE_API_KEY="sk-LY0rPYNkASdjCORsTUYku4FsryuagkjTolgVosbfv4xawSwi"
 export GOOGLE_BASE_URL="https://api.chatanywhere.tech/v1"  # 默认值，可不设置
 
 mkdir -p logs/melon-gemini
 
-python -m agentdojo.scripts.benchmark --suite banking --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/banking_type_iii_b_sop.log 2>&1 &
+# python -m agentdojo.scripts.benchmark --suite banking --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/banking_type_iii_b_sop.log 2>&1 &
 
-python -m agentdojo.scripts.benchmark --suite slack --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/slack_type_iii_b_sop.log 2>&1 &
+# python -m agentdojo.scripts.benchmark --suite slack --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/slack_type_iii_b_sop.log 2>&1 &
 
-python -m agentdojo.scripts.benchmark --suite workspace --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/workspace_type_iii_b_sop.log 2>&1 &
+# python -m agentdojo.scripts.benchmark --suite workspace --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/workspace_type_iii_b_sop.log 2>&1 &
 
-python -m agentdojo.scripts.benchmark --suite travel --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/travel_type_iii_b_sop.log 2>&1 &
+# python -m agentdojo.scripts.benchmark --suite travel --benchmark-version adversarial --attack tool_attack --attack-vector-type type_iii_b --attack-type sop_parameter_override --defense melon --model GEMINI_2_5_PRO_PREVIEW_05_06 --max-workers 1 --force-rerun --logdir runs/melon-gemini/type_iii_b_sop > logs/melon-gemini/travel_type_iii_b_sop.log 2>&1 &
 
 # ========================================
 # Process Mapping for Banking Suite (Progent)

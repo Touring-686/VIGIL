@@ -14,19 +14,24 @@ export SECAGENT_IGNORE_UPDATE_ERROR="False"
 export SECAGENT_SUITE="False"
 export USE_SECAGENT="False"
 export PYTHONPATH="${PWD}/src"
-mkdir -p logs/vigil-qwen
+mkdir -p logs/vigil-qwen-data-attack
 
-# python -m agentdojo.scripts.benchmark \
-#     --benchmark-version adversarial \
-#     --defense vigil \
-#     --model QWEN3_MAX \
-#     --max-workers 1 \
-#     --force-rerun \
-#     --logdir ./runs/vigil/banking/user_tasks_only > logs/vigil-qwen/ser_tasks_only.log 2>&1 &
+python -m agentdojo.scripts.benchmark \
+    --benchmark-version adversarial \
+    --defense vigil \
+    --model QWEN3_MAX \
+    --attack important_instructions \
+    --suite travel \
+    --max-workers 1 \
+    --use-tool-cache \
+    --enable-path-cache \
+    --logdir ./runs/vigil/travel/user_tasks_only > logs/vigil-qwen-data-attack/data_attack_travel_0102.log 2>&1 &
 
-python -m agentdojo.scripts.benchmark --suite banking --benchmark-version adversarial --attack important_instructions --defense vigil --model QWEN3_MAX --max-workers 1 --force-rerun --logdir runs/vigil-qwen/banking/important_instruction > logs/vigil-qwen/data_attack_workspace.log 2>&1 &
+python -m agentdojo.scripts.benchmark --suite banking --benchmark-version adversarial --attack important_instructions --defense vigil --model QWEN3_MAX --max-workers 1 --use-tool-cache --enable-path-cache --logdir runs/vigil-qwen/banking/important_instruction > logs/vigil-qwen-data-attack/data_attack_banking_0102.log 2>&1 &
 
-# python -m agentdojo.scripts.benchmark --suite workspace --benchmark-version adversarial --attack important_instructions --defense vigil --model QWEN3_MAX --max-workers 1 --force-rerun --logdir runs/vigil-qwen/workspace/important_instruction > logs/vigil-qwen/data_attack_workspace.log 2>&1 &
+# python -m agentdojo.scripts.benchmark --suite workspace --benchmark-version adversarial --attack important_instructions --defense vigil --model QWEN3_MAX --max-workers 1 --use-tool-cache --enable-path-cache --logdir runs/vigil-qwen/workspace/important_instruction > logs/vigil-qwen-data-attack/data_attack_workspace_0102.log 2>&1 &
+
+python -m agentdojo.scripts.benchmark --suite slack --benchmark-version adversarial --attack important_instructions --defense vigil --model QWEN3_MAX --max-workers 1 --use-tool-cache --enable-path-cache --logdir runs/vigil-qwen/slack/important_instruction > logs/vigil-qwen-data-attack/data_attack_slack_0102.log 2>&1 &
 
 # python -m agentdojo.scripts.benchmark --suite banking --benchmark-version adversarial --attack tool_attack --attack-vector-type type_i_a --attack-type parameter_override --defense vigil --model QWEN3_MAX --max-workers 1 --force-rerun --logdir runs/vigil-qwen/banking/type_i_a > logs/vigil-qwen/banking_type_i_a.log 2>&1 &
 

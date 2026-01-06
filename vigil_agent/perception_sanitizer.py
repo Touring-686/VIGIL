@@ -127,8 +127,10 @@ class PerceptionSanitizer:
         Args:
             config: VIGIL配置
         """
+        from vigil_agent.client_utils import create_openai_client_for_model
+
         self.config = config
-        self.client = openai.OpenAI() if config.enable_perception_sanitizer else None
+        self.client = create_openai_client_for_model(config.sanitizer_model) if config.enable_perception_sanitizer else None
         self._sanitizer_cache: dict[str, str] = {}
 
         # 恶意模式列表（用于快速检测）
@@ -258,9 +260,9 @@ class PerceptionSanitizer:
         Returns:
             清洗后的文本
         """
-        if self.client is None:
-            # 降级：使用规则清洗
-            return self._sanitize_with_rules(text)
+        # if self.client is None:
+        #     # 降级：使用规则清洗
+        #     return self._sanitize_with_rules(text)
 
         try:
             prompt = DEFAULT_SANITIZER_PROMPT_RESULT.format(text=text)

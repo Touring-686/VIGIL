@@ -24,6 +24,264 @@ from vigil_agent.types import ToolCallInfo
 logger = logging.getLogger(__name__)
 
 
+# ==============================================================================
+# OpenAI Function Calling Schema for VIGIL Framework
+# ==============================================================================
+# VIGIL_TOOL_SCHEMA = [
+#     {
+#         "type": "function",
+#         "function": {
+#             "name": "submit_candidate_strategies",
+#             "description": "Submit execution strategies based on VIGIL framework logic.",
+#             "parameters": {
+#                 "type": "object",
+#                 "properties": {
+#                     "strategies": {
+#                         "type": "array",
+#                         "items": {
+#                             "type": "object",
+#                             "properties": {
+#                                 "choice_id": {
+#                                     "type": "string",
+#                                     "description": "Identifier like 'choice1', 'choice2'"
+#                                 },
+#                                 "tool_name": {
+#                                     "type": "string",
+#                                     "description": "The specific tool to call (or virtual tools: __response__, __internal_reasoning__, __step_skip__)"
+#                                 },
+#                                 "execution_args": {
+#                                     "type": "array",
+#                                     "description": "List of argument sets. Contains 1 item for single execution, or N items for iterative execution of the SAME function.",
+#                                     "items": {
+#                                         "type": "object",
+#                                         "properties": {
+#                                             "args": {
+#                                                 "type": "object",
+#                                                 "description": "Key-value arguments for the function."
+#                                             },
+#                                             "verification_metadata": {
+#                                                 "type": "object",
+#                                                 "properties": {
+#                                                     "operation_type": {
+#                                                         "type": "string",
+#                                                         "enum": ["READ", "WRITE", "SEARCH", "COMMUNICATE", "TRANSACT", "BOOK", "GRANT_ACCESS", "REASONING"]
+#                                                     },
+#                                                     "information_flow": {"type": "object"}
+#                                                 },
+#                                                 "required": ["operation_type", "information_flow"]
+#                                             },
+#                                             "reasoning": {"type": "string"}
+#                                         },
+#                                         "required": ["args", "verification_metadata", "reasoning"]
+#                                     }
+#                                 }
+#                             },
+#                             "required": ["choice_id", "tool_name", "execution_args"]
+#                         }
+#                     }
+#                 },
+#                 "required": ["strategies"]
+#             }
+#         }
+#     }
+# ]
+
+VIGIL_TOOL_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "submit_candidate_strategies",
+            "description": "Submit execution strategies based on VIGIL framework logic.",
+            "strict": True,  # 【关键点1】开启严格模式
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "strategies": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "choice_id": {
+                                    "type": "string",
+                                    "description": "Identifier like 'choice1', 'choice2'"
+                                },
+                                "tool_name": {
+                                    "type": "string",
+                                    "description": "The specific tool to call (or virtual tools: __response__, __internal_reasoning__, __step_skip__)"
+                                },
+                                "operation_type": {
+                                    "type": "string",
+                                    "description": "Type of operation being performed",
+                                    "enum": ["READ", "WRITE", "SEARCH", "COMMUNICATE", "TRANSACT", "BOOK", "GRANT_ACCESS", "REASONING"]
+                                },
+                                "execution_args": {
+                                    "type": "array",
+                                    "description": "List of argument sets. Contains 1 item for single execution, or N items for iterative execution of the SAME function.",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "args": {
+                                                "type": "object",
+                                                "description": "Key-value arguments for the function.",
+                                                "additionalProperties": True # args 内容动态变化，此处无法 strict，但外层结构已锁死
+                                            },
+                                            "information_flow": {
+                                                "type": "object",
+                                                "description": "Data flow mapping from source to argument, format: argument_name: 'Source -> Target'",
+                                                "additionalProperties": {"type": "string"}
+                                            },
+                                            "reasoning": {"type": "string"}
+                                        },
+                                        "required": ["args", "information_flow", "reasoning"],
+                                        "additionalProperties": False
+                                    }
+                                }
+                            },
+                            "required": ["choice_id", "tool_name", "operation_type", "execution_args"],
+                            "additionalProperties": False
+                        }
+                    }
+                },
+                "required": ["strategies"], # 【关键点3】所有字段必填
+                "additionalProperties": False
+            }
+        }
+    }
+]
+
+
+# ==============================================================================
+# Optimized System Prompt for _reason_tool_paths_v2 (Function Calling)
+# ==============================================================================
+OPTIMIZED_HYPOTHESIZER_PROMPT = """[ROLE]
+You are the **Speculative Reasoner (Hypothesizer)** within the VIGIL framework.
+Your task is to determine the best execution method for the **[Current Abstract Step]** based on available resources.
+
+[INPUT CONTEXT]
+1. **User Intent**: "{user_intent}"
+2. **Current Abstract Step**:
+   - Type: {current_step_type}
+   - Description: {current_step_description}
+   - Allowed Capabilities: {current_step_capabilities}
+3. **Execution History (Observations)**:
+{execution_history_text}
+4. **Available Tools (Docstrings)**:
+{tools_text}
+
+[CRITICAL INSTRUCTIONS - EXECUTION HIERARCHY]
+
+You MUST evaluate the following priorities in strict order (0 -> 1 -> 2 -> 3) and submit your decision by calling the function `submit_candidate_strategies`.
+
+**PRIORITY 0: FINAL USER RESPONSE (Check First)**
+- **Condition**: Does the [Current Abstract Step] type equal `GENERATE_FINAL_ANSWER` or `REPORT_RESULTS`?
+- **Action**: Use `tool_name`: `"__response__"`.
+- **Logic**: Synthesize final text based on History.
+
+**PRIORITY 1: EXTERNAL TOOL EXECUTION**
+- **Condition**: Does one or more tools exist that can retrieve the **Target Entity** or perform the **Core Action**?
+- **Multi-Candidate Strategy**: If multiple distinct tools apply, return them as separate strategies (choice1, choice2).
+- **Iterative Strategy (List -> Scalar Mismatch)**:
+  - If the tool expects a **Single Value** but input data is a **List**:
+  - Keep a SINGLE strategy (e.g., choice1).
+  - Inside `execution_args`, generate **MULTIPLE** objects (one for each list item).
+
+**PRIORITY 2: INTERNAL REASONING (Fallback)**
+- **Condition**: Priority 0 and 1 failed. Step involves logic/extraction using ONLY History.
+- **Action**: Use `tool_name`: `"__internal_reasoning__"`.
+
+**PRIORITY 3: SKIP / NO-OP**
+- **Condition**: Impossible to proceed.
+- **Action**: Use `tool_name`: `"__step_skip__"`.
+
+[METADATA RULES]
+For every execution item, populate the metadata fields:
+1. `operation_type`: Strictly choose from [`READ`, `WRITE`, `SEARCH`, `COMMUNICATE`, `TRANSACT`, `BOOK`, `GRANT_ACCESS`, `REASONING`].
+2. `information_flow`: Format `argument_name: "Source -> Target"`.
+
+[FEW-SHOT EXAMPLES - HOW TO CALL THE FUNCTION]
+
+**Case A: Priority 0 - Final Response (The End of Task)**
+{{
+  "strategies": [
+    {{
+      "choice_id": "choice1",
+      "tool_name": "__response__",
+      "operation_type": "REASONING",
+      "execution_args": [
+        {{
+          "args": {{
+            "final_content": "The hotel 'Le Marais' has been booked. Rating: 4.8. Price: $180. Confirmation sent to your calendar."
+          }},
+          "information_flow": {{ "final_content": "History_All_Steps -> synthesis" }},
+          "reasoning": "Step is 'GENERATE_FINAL_ANSWER'. Synthesizing all previous observations into a final response for the user."
+        }}
+      ]
+    }}
+  ]
+}}
+
+**Case B: Priority 1 - Tool Found**
+{{
+  "strategies": [
+    {{
+      "choice_id": "choice1",
+      "tool_name": "get_most_recent_transactions",
+      "operation_type": "SEARCH",
+      "execution_args": [
+        {{
+          "args": {{ "n": 50 }},
+          "information_flow": {{ "n": "Inferred_Default -> n" }},
+          "reasoning": "Calling coarse-grained tool to fetch data for subsequent filtering."
+        }}
+      ]
+    }}
+  ]
+}}
+
+**Case C: Priority 2 - Internal Reasoning**
+{{
+  "strategies": [
+    {{
+      "choice_id": "choice1",
+      "tool_name": "__internal_reasoning__",
+      "operation_type": "REASONING",
+      "execution_args": [
+        {{
+          "args": {{
+            "task": "Filter transactions",
+            "result": "List of March transactions",
+            "source_data": "Output of get_transactions"
+          }},
+          "information_flow": {{ "source_data": "History_Step_1 -> content" }},
+          "reasoning": "Filtering raw data internally."
+        }}
+      ]
+    }}
+  ]
+}}
+
+**Case D: Priority 3 - No Match (Skip)**
+{{
+  "strategies": [
+    {{
+      "choice_id": "choice1",
+      "tool_name": "__step_skip__",
+      "operation_type": "REASONING",
+      "execution_args": [
+        {{
+          "args": {{ "reason": "No flight tools available." }},
+          "information_flow": {{}},
+          "reasoning": "No matching tools found to satisfy the request."
+        }}
+      ]
+    }}
+  ]
+}}
+
+Now, evaluate priorities 0->1->2->3 and call `submit_candidate_strategies` for the CURRENT step:
+"""
+
+
 class HypothesisBranch(BaseModel):
     """假设分支
 
@@ -109,7 +367,9 @@ class Hypothesizer:
         if self.openai_client is None and config.enable_hypothesis_generation:
             try:
                 import openai
-                self.openai_client = openai.OpenAI()
+                from vigil_agent.client_utils import create_openai_client_for_model
+
+                self.openai_client = create_openai_client_for_model(config.hypothesizer_model)
                 logger.info("[Hypothesizer] Created default OpenAI client")
             except Exception as e:
                 logger.warning(
@@ -250,7 +510,15 @@ class Hypothesizer:
 
         # === 步骤2：使用 LLM 推理哪些工具真正适合此步骤及其参数 ===
         # 这是 Speculative Reasoner 的核心：利用 LLM 的推理能力
-        selected_tool_calls = self._reason_tool_paths(
+        # selected_tool_calls = self._reason_tool_paths(
+        #     current_step=current_step,
+        #     candidate_tools=candidate_tools,
+        #     user_intent=user_intent,
+        #     constraint=abstract_sketch.global_constraints if hasattr(abstract_sketch, 'global_constraints') else None,
+        #     abstract_sketch=abstract_sketch,  # 传入完整sketch
+        #     current_step_index=current_step_index,  # 传入当前步骤索引
+        # )
+        selected_tool_calls = self._reason_tool_paths_v2(
             current_step=current_step,
             candidate_tools=candidate_tools,
             user_intent=user_intent,
@@ -267,18 +535,64 @@ class Hypothesizer:
 
         # === 步骤3：为 LLM 选择的工具调用生成假设分支 ===
         branches = []
+        # 用于跟踪每个工具名称的调用次数，以生成唯一的 branch_id
+        tool_call_counters = {}
+
+        # === 步骤3.1：分组迭代执行的 tool_calls ===
+        # 识别具有相同 choice_id 的迭代调用，将它们合并为一个 branch
+        grouped_tool_calls = []
+        iterative_groups: dict[str, list[dict]] = {}  # choice_id -> list of tool_calls
+
         for tool_call_spec in selected_tool_calls:
+            iteration_info = tool_call_spec.get("iteration_info")
+
+            if iteration_info and iteration_info.get("is_iterative"):
+                # 迭代执行：按 choice_id 分组
+                choice_id = iteration_info.get("choice_id", "unknown")
+                if choice_id not in iterative_groups:
+                    iterative_groups[choice_id] = []
+                iterative_groups[choice_id].append(tool_call_spec)
+            else:
+                # 非迭代执行：直接添加
+                grouped_tool_calls.append(tool_call_spec)
+
+        # 将迭代组转换为合并的 tool_call
+        for choice_id, tool_calls_group in iterative_groups.items():
+            if len(tool_calls_group) > 0:
+                # 按 iteration_index 排序确保顺序正确
+                tool_calls_group.sort(key=lambda x: x.get("iteration_info", {}).get("iteration_index", 0))
+
+                # 创建一个合并的 tool_call，包含所有迭代的信息
+                merged_tool_call = {
+                    "tool_name": tool_calls_group[0].get("tool_name"),
+                    "arguments": tool_calls_group[0].get("arguments"),  # 第一个作为主参数（向后兼容）
+                    "reason": f"Iterative execution: {len(tool_calls_group)} calls",
+                    "verification_metadata": tool_calls_group[0].get("verification_metadata"),
+                    "is_merged_iterative": True,  # 标记为合并的迭代调用
+                    "iterative_calls": tool_calls_group,  # 保存所有迭代调用
+                }
+                grouped_tool_calls.append(merged_tool_call)
+
+                if self.config.log_hypothesis_generation:
+                    logger.info(
+                        f"[Hypothesizer] Merged {len(tool_calls_group)} iterative calls "
+                        f"for choice '{choice_id}' into a single branch"
+                    )
+
+        # === 步骤3.2：为分组后的 tool_calls 生成假设分支 ===
+        for tool_call_spec in grouped_tool_calls:
             tool_name = tool_call_spec.get("tool_name", "unknown")
             tool_arguments = tool_call_spec.get("arguments", {})
+            is_merged_iterative = tool_call_spec.get("is_merged_iterative", False)
 
             # === 特殊处理：__skip_step__ 分支 ===
-            if tool_name == "__skip_step__":
+            if tool_name == "__step_skip__":
                 # LLM 认为当前步骤不需要调用任何工具
                 skip_reason = tool_call_spec.get("reason", "No reason provided")
 
                 if self.config.log_hypothesis_generation:
                     logger.info(
-                        f"[Hypothesizer] Creating __skip_step__ branch for step '{current_step.step_type}'. "
+                        f"[Hypothesizer] Creating __step_skip__ branch for step '{current_step.step_type}'. "
                         f"Reason: {skip_reason}"
                     )
 
@@ -286,7 +600,7 @@ class Hypothesizer:
                 skip_branch = HypothesisBranch(
                     branch_id=f"branch_skip_step",
                     tool_call={
-                        "tool_name": "__skip_step__",
+                        "tool_name": "__step_skip__",
                         "arguments": {},
                         "reason": skip_reason,  # 保存跳过原因
                         "tool_call_id": None,
@@ -410,9 +724,28 @@ class Hypothesizer:
             # 生成推理理由
             rationale = self._generate_rationale(tool_def, current_step, tool_source)
 
+            # 生成唯一的 branch_id（支持同一工具的多次调用）
+            # 对于迭代执行，使用特殊的 ID
+            if is_merged_iterative:
+                iterative_calls = tool_call_spec.get("iterative_calls", [])
+                first_choice_id = iterative_calls[0].get("iteration_info", {}).get("choice_id", "unknown") if iterative_calls else "unknown"
+                branch_id = f"branch_{first_choice_id}_iterative"
+            else:
+                # 非迭代执行：使用工具名称和计数器生成唯一 ID
+                if tool_name not in tool_call_counters:
+                    tool_call_counters[tool_name] = 0
+                else:
+                    tool_call_counters[tool_name] += 1
+
+                counter = tool_call_counters[tool_name]
+                if counter == 0:
+                    branch_id = f"branch_{tool_name}"
+                else:
+                    branch_id = f"branch_{tool_name}_{counter}"
+
             # 创建假设分支（现在包含 LLM 推理的参数）
             branch = HypothesisBranch(
-                branch_id=f"branch_{tool_name}",
+                branch_id=branch_id,
                 tool_call={
                     "tool_name": tool_name,
                     "arguments": tool_arguments,  # 使用 LLM 推理的参数
@@ -431,6 +764,8 @@ class Hypothesizer:
                     "estimated_efficiency": estimated_efficiency,  # Fast/Medium/Slow
                     "step_type": current_step.step_type,
                     "step_description": current_step.description,
+                    "is_merged_iterative": is_merged_iterative,  # 标记是否为迭代执行
+                    "iterative_calls": tool_call_spec.get("iterative_calls") if is_merged_iterative else None,  # 保存所有迭代调用
                 },
             )
 
@@ -565,9 +900,13 @@ You MUST evaluate the following priorities in strict order (0 -> 1 -> 2 -> 3).
 **PRIORITY 1: EXTERNAL TOOL EXECUTION**
 - **Condition**: Does a tool exist that can retrieve the **Target Entity** or perform the **Core Action**?
 - **Action**: Generate a concrete tool call.
+- **Multi-Candidate Strategy (CRITICAL)**:
+  - If **ONE** tool fits best, return an array containing that single tool.
+  - If **MULTIPLE** tools are valid candidates (e.g., overlapping functionality or equally viable alternatives), **RETURN ALL OF THEM** as separate objects in the JSON array. Do not arbitrarily pick one if ambiguity exists.
 - **Handling Coarse-Grained Tools (CRITICAL)**:
   - If the tool is broader than the request (e.g., "Get all" vs "Find specific"), **YOU CAN CALL THIS TOOL.**
 - **Parameter Inference**: Use Reasonable Defaults (e.g., n=50) if parameters are missing.
+
 
 **PRIORITY 2: INTERNAL REASONING (Fallback for Logic/Extraction)**
 - **Condition**: 
@@ -1096,6 +1435,538 @@ Now, evaluate priorities 0->1->2->3 and generate the JSON for the CURRENT step:
             # 出错时返回所有候选工具（保守策略）
             return [{"tool_name": tool["name"], "arguments": {}} for tool in candidate_tools]
 
+    def _reason_tool_paths_v2(
+        self,
+        current_step: Any,
+        candidate_tools: list[dict[str, Any]],
+        user_intent: str,
+        constraint = None,
+        abstract_sketch: Any = None,
+        current_step_index: int = 0,
+    ) -> list[dict[str, Any]]:
+        """使用 OpenAI Function Calling 推理工具执行路径（V2版本）
+
+        这是 VIGIL Speculative Reasoner 的增强版本：
+        利用 OpenAI function calling 机制来获取结构化的工具调用方案，
+        包括多候选策略、迭代执行等高级特性。
+
+        Args:
+            current_step: Abstract Sketch 的当前步骤
+            candidate_tools: 候选工具列表
+            user_intent: 用户意图
+            constraint: 全局约束
+            abstract_sketch: 完整的abstract sketch
+            current_step_index: 当前步骤索引
+
+        Returns:
+            LLM 推理出的工具调用列表，每个包含 tool_name 和 arguments
+        """
+        if not self.openai_client:
+            # 没有 LLM client，返回所有候选工具（回退到非推理模式）
+            logger.warning("[Hypothesizer V2] No OpenAI client available, returning all candidates")
+            return [{"tool_name": tool["name"], "arguments": {}} for tool in candidate_tools]
+
+        # 最大重试次数（如果解析失败）
+        max_retries = 2
+        last_error = None
+
+        for retry_attempt in range(max_retries + 1):
+            if retry_attempt > 0:
+                logger.warning(
+                    f"[Hypothesizer V2] Retry attempt {retry_attempt}/{max_retries} "
+                    f"due to parsing error: {last_error}"
+                )
+
+            try:
+                # 调用 LLM 并解析结果
+                result = self._call_llm_and_parse_v2(
+                    current_step=current_step,
+                    candidate_tools=candidate_tools,
+                    user_intent=user_intent,
+                    execution_history_text=self._build_execution_history_text(),
+                    retry_attempt=retry_attempt,
+                    last_error=last_error,
+                )
+
+                # 解析成功，返回结果
+                return result
+
+            except json.JSONDecodeError as e:
+                last_error = f"JSON parse error at position {e.pos}: {str(e)}"
+                logger.error(f"[Hypothesizer V2] Attempt {retry_attempt + 1} failed: {last_error}")
+            except ValueError as e:
+                last_error = f"Value error: {str(e)}"
+                logger.error(f"[Hypothesizer V2] Attempt {retry_attempt + 1} failed: {last_error}")
+            except Exception as e:
+                last_error = f"Unexpected error: {str(e)}"
+                logger.error(f"[Hypothesizer V2] Attempt {retry_attempt + 1} failed: {last_error}")
+
+        # 所有重试都失败，返回空列表
+        logger.error(
+            f"[Hypothesizer V2] All {max_retries + 1} attempts failed. "
+            f"Last error: {last_error}. Returning empty list."
+        )
+        return []
+
+    def _build_execution_history_text(self) -> str:
+        """构建执行历史文本"""
+        execution_history_text = "No previous executions yet (this is the first step)"
+        if self.auditor and hasattr(self.auditor, 'execution_history') and self.auditor.execution_history:
+            history_lines = []
+            for record in self.auditor.execution_history:
+                tool_name = record["tool_name"]
+                args = record.get("arguments", {})
+                result = record.get("result", "")
+                # 简化参数显示
+                import json
+                args_str = json.dumps(args) if args else "{}"
+                # 截断result
+                result_preview = result[:300] if result else "No result"
+                history_lines.append(
+                    f"  - Step {record['step_index']}: {tool_name}({args_str})\n"
+                    f"    Result: {result_preview}"
+                )
+            execution_history_text = "\n".join(history_lines)
+        return execution_history_text
+
+    def _call_llm_and_parse_v2(
+        self,
+        current_step: Any,
+        candidate_tools: list[dict[str, Any]],
+        user_intent: str,
+        execution_history_text: str,
+        retry_attempt: int = 0,
+        last_error: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """调用 LLM 并解析结果（可重试）
+
+        Args:
+            current_step: 当前步骤
+            candidate_tools: 候选工具列表
+            user_intent: 用户意图
+            execution_history_text: 执行历史文本
+            retry_attempt: 当前重试次数
+            last_error: 上次的错误信息
+
+        Returns:
+            解析后的工具调用列表
+
+        Raises:
+            json.JSONDecodeError: JSON 解析失败
+            ValueError: 数据格式错误
+        """
+
+        # 构建工具列表描述（包含参数信息）
+        tools_description = []
+        for i, tool in enumerate(candidate_tools, 1):
+            tool_name = tool.get("name", "unknown")
+            tool_desc = tool.get("full_docstring", "No description")
+            # 添加参数信息
+            parameters = tool.get("parameters", {})
+            params_text = ""
+            if parameters == {}:
+                params_text = "  (no parameters)"
+            elif isinstance(parameters, dict):
+                params_info = parameters.get("properties", {})
+                required_params = parameters.get("required", [])
+                param_list = []
+                for param_name, param_info in params_info.items():
+                    param_type = param_info.get("type", "any")
+                    is_required = " (required)" if param_name in required_params else ""
+                    param_list.append(f"  - {param_name}: {param_type}{is_required}")
+                params_text = "\n".join(param_list) if param_list else "  (no parameters)"
+
+            tools_description.append(
+                f"{i}. {tool_name}:\n"
+                f"   Description: {tool_desc}\n"
+                f"   Parameters:\n{params_text}"
+            )
+
+        tools_text = "\n\n".join(tools_description)
+
+        # 格式化prompt
+        prompt = OPTIMIZED_HYPOTHESIZER_PROMPT.format(
+            user_intent=user_intent,
+            current_step_type=current_step.step_type if hasattr(current_step, 'step_type') else 'Unknown',
+            current_step_description=current_step.description if hasattr(current_step, 'description') else 'Unknown',
+            current_step_capabilities=current_step.allowed_operations if hasattr(current_step, 'allowed_operations') else [],
+            execution_history_text=execution_history_text,
+            tools_text=tools_text,
+        )
+
+        # 如果是重试，添加错误信息到 prompt
+        if retry_attempt > 0 and last_error:
+            retry_message = f"""
+
+**IMPORTANT - RETRY ATTEMPT {retry_attempt}**:
+Your previous response had a formatting error and could not be parsed:
+Error: {last_error}
+
+Please ensure your response follows the EXACT JSON schema defined in the function.
+- Use double quotes for ALL string values
+- Ensure all brackets and braces are properly closed
+- Do NOT include any markdown formatting or code blocks
+- Return ONLY the function call with valid JSON"""
+            prompt = prompt + retry_message
+
+        # 调用 OpenAI API with function calling
+        response = self.openai_client.chat.completions.create(
+            model=self.config.hypothesizer_model,
+            messages=[
+                {"role": "system", "content": "You are a precise reasoning assistant within the VIGIL framework. You must use the provided function to submit your execution strategies."},
+                {"role": "user", "content": prompt}
+            ],
+            tools=VIGIL_TOOL_SCHEMA,
+            tool_choice={"type": "function", "function": {"name": "submit_candidate_strategies"}},  # 强制调用此函数
+            temperature=self.config.hypothesizer_temperature,
+            max_tokens=8192,
+        )
+
+        # 记录 token 使用情况
+        if response.usage:
+            self.token_tracker.record_usage(
+                module=TokenStatsTracker.MODULE_SPECULATIVE_REASONER,
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+                model=self.config.hypothesizer_model,
+            )
+
+        # 解析 function call 响应
+        import json
+
+        message = response.choices[0].message
+
+        # 检查是否有 tool_calls
+        if not message.tool_calls or len(message.tool_calls) == 0:
+            logger.warning("[Hypothesizer V2] No tool calls in response")
+            raise ValueError("LLM did not return any tool calls")
+
+        # 获取第一个 tool call（应该是 submit_candidate_strategies）
+        tool_call = message.tool_calls[0]
+        function_name = tool_call.function.name
+        function_args_str = tool_call.function.arguments
+
+        if function_name != "submit_candidate_strategies":
+            logger.warning(
+                f"[Hypothesizer V2] Unexpected function name '{function_name}', "
+                f"expected 'submit_candidate_strategies'"
+            )
+            raise ValueError(f"Unexpected function name: {function_name}")
+
+        # 解析 function arguments（抛出异常以触发重试）
+        function_args = self._parse_function_arguments(function_args_str)
+
+        # 验证并转换格式
+        selected_tool_calls = self._convert_strategies_to_tool_calls(
+            function_args,
+            candidate_tools,
+            current_step
+        )
+
+        return selected_tool_calls
+
+    def _parse_function_arguments(self, function_args_str: str) -> list[dict]:
+        """解析 function arguments，支持多层转义和正则提取
+
+        Args:
+            function_args_str: JSON 字符串
+
+        Returns:
+            解析后的 strategies 列表
+
+        Raises:
+            json.JSONDecodeError: 所有解析方法都失败时抛出
+        """
+        import json
+        import re
+
+        # === 特殊处理：检查是否包含特殊工具名 ===
+        # 对于 __internal_reasoning__、__response__、__step_skip__，使用简化解析
+        special_tools = ["__internal_reasoning__", "__response__", "__step_skip__"]
+
+        # 检查是否包含特殊工具名（简化判断）
+        detected_tool = None
+        for tool in special_tools:
+            if tool in function_args_str:
+                detected_tool = tool
+                break
+
+        if detected_tool:
+            logger.info(f"[Hypothesizer V2] Detected special tool '{detected_tool}', using simplified parsing")
+
+            # 提取 reasoning 文本（通常在最后）
+            reasoning = "No reasoning provided"
+            # 找到最后一个 "reasoning" 的位置
+            reasoning_idx = function_args_str.rfind('reasoning')
+            if reasoning_idx != -1:
+                # 找到 "reasoning" 后面的冒号
+                start_idx = function_args_str.find(':', reasoning_idx)
+                if start_idx != -1:
+                    # 跳过冒号和可能的空格、引号
+                    start_idx += 1
+                    while start_idx < len(function_args_str) and function_args_str[start_idx] in ' \t\n"\\':
+                        start_idx += 1
+
+                    # 提取从这里到字符串末尾的内容
+                    reasoning = function_args_str[start_idx:]
+
+                    # 清理末尾的特殊字符和标记
+                    # 移除末尾的 "}]}]}\n" 等标记
+                    for end_pattern in ['"}]}]', '"}]}', '"}]', '\\"}]}', '\\"}]', '}]}]', '}]}', '}]', '"]', '"}}', '"}', '}"', '"']:
+                        if reasoning.endswith(end_pattern):
+                            reasoning = reasoning[:-len(end_pattern)]
+                            break
+
+                    # 清理转义字符
+                    reasoning = reasoning.replace('\\"', '"')
+                    reasoning = reasoning.replace('\\\\n', '\n')
+                    reasoning = reasoning.replace('\\n', ' ')
+                    reasoning = reasoning.replace('\\t', ' ')
+
+                    # 移除开头和结尾的引号和空格
+                    reasoning = reasoning.strip('"').strip('\\').strip()
+
+            # 构造简化的 strategies
+            simplified_strategy = {
+                "choice_id": "choice1",
+                "tool_name": detected_tool,
+                "operation_type": "REASONING" if detected_tool == "__internal_reasoning__" else "RESPONSE" if detected_tool == "__response__" else "SKIP",
+                "execution_args": [
+                    {
+                        "args": {},  # 特殊工具不需要复杂参数
+                        "reasoning": reasoning,
+                        "information_flow": {}  # 空的 information_flow
+                    }
+                ]
+            }
+
+            logger.info(
+                f"[Hypothesizer V2] Simplified parsing successful: "
+                f"tool={detected_tool}, reasoning='{reasoning}...'"
+            )
+            return [simplified_strategy]
+
+        # === 标准解析流程 ===
+        # 第一次解析
+        function_args = json.loads(function_args_str)
+
+        # 处理双重转义：如果解析后仍然是字符串，再次解析
+        if isinstance(function_args, str):
+            logger.warning(
+                "[Hypothesizer V2] Function arguments is a string after first parse. "
+                "Attempting second parse (double-escaped JSON)."
+            )
+            function_args = json.loads(function_args)  # 如果失败会抛出异常
+
+        # 兼容性处理：如果 LLM 直接返回数组而不是 {"strategies": [...]}
+        if isinstance(function_args, list):
+            logger.warning(
+                "[Hypothesizer V2] LLM returned array instead of object with 'strategies' field. "
+                "Auto-wrapping for compatibility."
+            )
+            strategies = function_args
+        else:
+            strategies = function_args.get("strategies", [])
+
+        # 处理 strategies 本身也是字符串的情况（三重转义）
+        if isinstance(strategies, str):
+            logger.warning(
+                "[Hypothesizer V2] Strategies field is a string. "
+                "Attempting to parse (triple-escaped JSON)."
+            )
+            try:
+                strategies = json.loads(strategies)
+            except json.JSONDecodeError:
+                # 使用正则表达式提取 JSON 数组
+                logger.warning("[Hypothesizer V2] Attempting regex extraction...")
+                array_match = re.search(r'\[.*\]', strategies, re.DOTALL)
+                if array_match:
+                    extracted_json = array_match.group(0)
+                    logger.info(f"[Hypothesizer V2] Extracted JSON array using regex: {extracted_json[:200]}...")
+
+                    # 清理提取的 JSON 字符串
+                    cleaned_json = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', extracted_json)
+                    cleaned_json = cleaned_json.replace("\\'", "'")
+
+                    try:
+                        strategies = json.loads(cleaned_json)
+                        logger.info("[Hypothesizer V2] Successfully parsed extracted JSON array")
+                    except json.JSONDecodeError as e2:
+                        # 最后尝试 ast.literal_eval
+                        import ast
+                        logger.warning("[Hypothesizer V2] Attempting ast.literal_eval as last resort...")
+                        try:
+                            strategies = ast.literal_eval(cleaned_json)
+                            logger.info("[Hypothesizer V2] Successfully parsed using ast.literal_eval")
+                        except (ValueError, SyntaxError) as e3:
+                            # 抛出原始错误以触发重试
+                            raise json.JSONDecodeError(
+                                f"All parsing methods failed. Last error: {str(e3)}",
+                                cleaned_json,
+                                e2.pos if hasattr(e2, 'pos') else 0
+                            )
+                else:
+                    raise json.JSONDecodeError("No JSON array pattern found", strategies, 0)
+
+        # 确保 strategies 是列表
+        if not isinstance(strategies, list):
+            raise ValueError(f"Strategies is not a list. Got type: {type(strategies)}")
+
+        if self.config.log_hypothesis_generation:
+            logger.info(f"[Hypothesizer V2] Successfully parsed {len(strategies)} strategies")
+
+        return strategies
+
+    def _convert_strategies_to_tool_calls(
+        self,
+        strategies: list[dict],
+        candidate_tools: list[dict[str, Any]],
+        current_step: Any
+    ) -> list[dict[str, Any]]:
+        """将 strategies 转换为 tool_calls 格式
+
+        Args:
+            strategies: 解析后的 strategies 列表
+            candidate_tools: 候选工具列表
+            current_step: 当前步骤
+
+        Returns:
+            转换后的工具调用列表
+        """
+        selected_tool_calls = []
+        valid_tool_names = {tool["name"] for tool in candidate_tools}
+
+        for strategy in strategies:
+            choice_id = strategy.get("choice_id", "unknown")
+            tool_name = strategy.get("tool_name")
+            operation_type = strategy.get("operation_type", "REASONING")  # 从strategy层级提取
+            execution_args_list = strategy.get("execution_args", [])
+
+            if self.config.log_hypothesis_generation:
+                logger.info(
+                    f"[Hypothesizer V2] Processing strategy '{choice_id}': "
+                    f"tool={tool_name}, operation_type={operation_type}, iterations={len(execution_args_list)}"
+                )
+
+            # 处理特殊工具名称
+            if tool_name in ["__response__", "__internal_reasoning__", "__step_skip__"]:
+                # 对于特殊工具，我们只取第一个 execution_args
+                if execution_args_list:
+                    first_exec = execution_args_list[0]
+                    # 构建verification_metadata（兼容新旧格式）
+                    verification_metadata = {
+                        "operation_type": operation_type,
+                        "information_flow": first_exec.get("information_flow", {})
+                    }
+                    selected_tool_calls.append({
+                        "tool_name": tool_name,
+                        "arguments": first_exec.get("args", {}),
+                        "reason": first_exec.get("reasoning", "No reason provided"),
+                        "verification_metadata": verification_metadata,
+                    })
+                else:
+                    selected_tool_calls.append({
+                        "tool_name": tool_name,
+                        "arguments": {},
+                        "reason": "No execution args provided",
+                        "verification_metadata": {
+                            "operation_type": operation_type,
+                            "information_flow": {}
+                        },
+                    })
+                continue
+
+            # 验证工具名称是否在候选列表中
+            if tool_name not in valid_tool_names:
+                if self.config.log_hypothesis_generation:
+                    logger.warning(
+                        f"[Hypothesizer V2] Strategy '{choice_id}' suggests tool '{tool_name}' "
+                        f"not in candidate list, skipping"
+                    )
+                continue
+
+            # 处理迭代执行：如果有多个 execution_args，为每个创建一个工具调用
+            if len(execution_args_list) > 1:
+                # 迭代执行模式
+                if self.config.log_hypothesis_generation:
+                    logger.info(
+                        f"[Hypothesizer V2] Iterative execution detected for '{tool_name}': "
+                        f"{len(execution_args_list)} iterations"
+                    )
+
+                for idx, exec_args in enumerate(execution_args_list):
+                    # 构建verification_metadata（从新格式提取）
+                    verification_metadata = {
+                        "operation_type": operation_type,
+                        "information_flow": exec_args.get("information_flow", {})
+                    }
+                    selected_tool_calls.append({
+                        "tool_name": tool_name,
+                        "arguments": exec_args.get("args", {}),
+                        "reason": exec_args.get("reasoning", f"Iteration {idx + 1}"),
+                        "verification_metadata": verification_metadata,
+                        "iteration_info": {
+                            "is_iterative": True,
+                            "iteration_index": idx,
+                            "total_iterations": len(execution_args_list),
+                            "choice_id": choice_id,
+                        }
+                    })
+            elif len(execution_args_list) == 1:
+                # 单次执行
+                exec_args = execution_args_list[0]
+                # 构建verification_metadata（从新格式提取）
+                verification_metadata = {
+                    "operation_type": operation_type,
+                    "information_flow": exec_args.get("information_flow", {})
+                }
+                selected_tool_calls.append({
+                    "tool_name": tool_name,
+                    "arguments": exec_args.get("args", {}),
+                    "reason": exec_args.get("reasoning", "No reason provided"),
+                    "verification_metadata": verification_metadata,
+                })
+            else:
+                # 没有 execution_args，使用空参数
+                logger.warning(
+                    f"[Hypothesizer V2] Strategy '{choice_id}' has no execution_args, "
+                    f"using empty arguments"
+                )
+                selected_tool_calls.append({
+                    "tool_name": tool_name,
+                    "arguments": {},
+                    "reason": "No execution args provided",
+                    "verification_metadata": {
+                        "operation_type": operation_type,
+                        "information_flow": {}
+                    },
+                })
+
+        # 限制分支数量
+        if len(selected_tool_calls) > self.config.max_hypothesis_branches:
+            original_count = len(selected_tool_calls)
+            selected_tool_calls = selected_tool_calls[:self.config.max_hypothesis_branches]
+            logger.info(
+                f"[Hypothesizer V2] Limiting to {self.config.max_hypothesis_branches} branches "
+                f"(LLM suggested {original_count})"
+            )
+
+        if self.config.log_hypothesis_generation:
+            tool_names = [tc["tool_name"] for tc in selected_tool_calls]
+            logger.info(
+                f"[Hypothesizer V2] Final tool calls for step '{current_step.step_type}': {tool_names}"
+            )
+
+        # 如果没有选择任何工具，返回空列表（不像v1那样返回前3个候选）
+        if not selected_tool_calls:
+            logger.warning(
+                f"[Hypothesizer V2] LLM selected no tools via function calling"
+            )
+            return []
+
+        return selected_tool_calls
+
     def _assess_risk_level(self, tool: dict[str, Any]) -> str:
         """评估工具的风险等级
 
@@ -1517,4 +2388,174 @@ Now, evaluate priorities 0->1->2->3 and generate the JSON for the CURRENT step:
             f"Tool source: {tool_source}. "
             f"Aligns with step requirements."
         )
+
+    def infer_parameters_for_cached_tool(
+        self,
+        cached_tool_name: str,
+        abstract_step_description: str,
+        user_query: str,
+        tool_schema: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """为缓存的工具推理参数（基于当前上下文）
+
+        这是 Path Cache 机制的关键部分：
+        1. Path Cache 提供了已验证安全的工具名称
+        2. 但参数需要根据当前的上下文重新推理
+        3. 这样既保证了安全性（工具已验证），又保证了适应性（参数是最新的）
+
+        Args:
+            cached_tool_name: 从 path cache 中取出的工具名称（已验证安全）
+            abstract_step_description: 当前抽象步骤描述
+            user_query: 用户查询
+            tool_schema: 工具的参数定义（可选，用于验证参数类型）
+
+        Returns:
+            推理出的参数字典
+        """
+        if not self.openai_client:
+            logger.warning("[Hypothesizer] No OpenAI client available for parameter inference")
+            return {}
+
+        # 获取执行历史
+        execution_history_text = "No previous executions yet"
+        if self.auditor and hasattr(self.auditor, 'execution_history') and self.auditor.execution_history:
+            history_lines = []
+            for record in self.auditor.execution_history:
+                tool_name = record["tool_name"]
+                args = record.get("arguments", {})
+                result = record.get("result", "")
+                # 简化参数显示
+                import json
+                args_str = json.dumps(args) if args else "{}"
+                # 截断result
+                result_preview = result[:200] if result else "No result"
+                history_lines.append(
+                    f"  - Step {record['step_index']}: {tool_name}({args_str})\n"
+                    f"    Result: {result_preview}"
+                )
+            execution_history_text = "\n".join(history_lines)
+
+        # 构建工具参数说明
+        tool_params_text = "No parameter schema available"
+        if tool_schema and "properties" in tool_schema:
+            params_info = tool_schema.get("properties", {})
+            required_params = tool_schema.get("required", [])
+            param_list = []
+            for param_name, param_info in params_info.items():
+                param_type = param_info.get("type", "any")
+                param_desc = param_info.get("description", "No description")
+                is_required = " (REQUIRED)" if param_name in required_params else " (optional)"
+                param_list.append(f"  - {param_name}: {param_type}{is_required}\n    Description: {param_desc}")
+            tool_params_text = "\n".join(param_list) if param_list else "This tool has no parameters"
+
+        # 构建 LLM prompt
+        prompt = f"""[ROLE]
+You are the **Parameter Inference Agent** within the VIGIL framework.
+Your task is to infer the appropriate parameters for a cached tool based on the current execution context.
+
+[CONTEXT]
+1. **User Query**: "{user_query}"
+
+2. **Current Abstract Step**:
+   Description: {abstract_step_description}
+
+3. **Execution History** (What has been done so far):
+{execution_history_text}
+
+4. **Selected Tool** (from Path Cache - already verified as safe):
+   Tool Name: {cached_tool_name}
+
+5. **Tool Parameters** (Schema):
+{tool_params_text}
+
+[TASK]
+Infer the appropriate parameter values for the tool `{cached_tool_name}` to complete the current step.
+
+**Critical Instructions**:
+1. **Use Execution History**: Extract parameter values from previous tool results when available
+   - Example: If a previous step returned "IBAN: XYZ123", use "XYZ123" for an iban parameter
+
+2. **Distinguish Subject vs Object**:
+   - Subject data (about the agent/user): get_iban, get_user_info, get_balance
+   - Object data (about external entities): read_file, search results
+   - For actions like transfer/send, use Object data as recipient/target
+
+3. **Match Current Step**: Ensure parameters align with the abstract step description
+   - If step says "transfer to account X", the recipient should be X (not the user's own account)
+
+4. **Type Compliance**: Match parameter types to the schema
+   - If schema says "integer", provide a number not a string
+   - If schema says "list", provide an array
+
+5. **Required Parameters**: All REQUIRED parameters must have values
+   - Use reasonable defaults if no specific value is available
+   - Example: If "n" is required but no specific number given, use n=50 or n=100
+
+[OUTPUT FORMAT]
+Return ONLY a valid JSON object with the parameter values. Do not include markdown formatting or explanations.
+
+Example responses:
+{{"recipient": "IBAN_FROM_FILE", "amount": 100.50}}
+{{"file_path": "/path/to/file.txt"}}
+{{"n": 50}}
+{{}}
+
+Your response (JSON only):"""
+
+        try:
+            # 调用 LLM
+            response = self.openai_client.chat.completions.create(
+                model=self.config.hypothesizer_model,
+                messages=[
+                    {"role": "system", "content": "You are a precise parameter inference assistant. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.0,  # 使用低温度保证一致性
+                max_tokens=1024,
+            )
+
+            # 记录 token 使用情况
+            if response.usage:
+                self.token_tracker.record_usage(
+                    module=TokenStatsTracker.MODULE_PATH_CACHING,
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    total_tokens=response.usage.total_tokens,
+                    model=self.config.hypothesizer_model,
+                )
+
+            # 解析响应
+            import json
+            import re
+
+            response_text = response.choices[0].message.content.strip()
+
+            # 提取 JSON（可能被代码块包裹）
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+
+            # 如果响应不是以 { 开头，尝试查找 JSON 对象
+            if not response_text.startswith('{'):
+                json_match = re.search(r'\{.*?\}', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(0)
+
+            inferred_params = json.loads(response_text)
+
+            if self.config.log_hypothesis_generation:
+                logger.info(
+                    f"[Hypothesizer] ✓ Inferred parameters for cached tool '{cached_tool_name}': "
+                    f"{inferred_params}"
+                )
+
+            return inferred_params
+
+        except json.JSONDecodeError as e:
+            logger.error(f"[Hypothesizer] Failed to parse parameter inference response as JSON: {e}")
+            logger.debug(f"[Hypothesizer] LLM response: {response_text}")
+            return {}
+        except Exception as e:
+            logger.error(f"[Hypothesizer] Error during parameter inference: {e}")
+            return {}
 

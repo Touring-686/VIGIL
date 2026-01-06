@@ -16,6 +16,7 @@
 
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 from agentdojo.agent_pipeline.base_pipeline_element import BasePipelineElement
 from agentdojo.functions_runtime import EmptyEnv, Env, FunctionsRuntime
@@ -53,6 +54,7 @@ class HypothesisGuidanceElement(BasePipelineElement):
         auditor,  # EnhancedRuntimeAuditor，用于访问 Abstract Sketch
         path_cache: PathCache | None = None,
         sanitizer: PerceptionSanitizer | None = None,
+        sketch_generator=None,  # AbstractSketchGenerator，用于动态更新 abstract steps
     ):
         """初始化假设引导元素
 
@@ -63,6 +65,7 @@ class HypothesisGuidanceElement(BasePipelineElement):
             auditor: 运行时审计器（用于访问Abstract Sketch）
             path_cache: 路径缓存（可选）
             sanitizer: 感知清洗器（可选，用于二次清洗工具返回值）
+            sketch_generator: 抽象草图生成器（可选，用于动态更新 abstract steps）
         """
         self.config = config
         self.hypothesizer = hypothesizer
@@ -70,6 +73,7 @@ class HypothesisGuidanceElement(BasePipelineElement):
         self.auditor = auditor
         self.path_cache = path_cache
         self.sanitizer = sanitizer
+        self.sketch_generator = sketch_generator  # 保存 sketch_generator 引用
 
         # 跟踪已处理的决策点（避免重复生成）
         self._processed_decision_points: set[str] = set()
@@ -186,6 +190,54 @@ class HypothesisGuidanceElement(BasePipelineElement):
         # 1. 获取 Abstract Sketch（如果存在）
         abstract_sketch = self.auditor.abstract_sketch if hasattr(self.auditor, 'abstract_sketch') else None
 
+        # ===== 动态 Intent Anchor：在生成 hypothesis tree 之前更新 abstract steps =====
+        # 注意：只在第一步执行完之后才更新（step_index > 0）
+        if (
+            self.config.enable_dynamic_intent_anchor
+            and self._current_step_index > 0  # 只在第一步之后更新
+            and abstract_sketch
+            and self.sketch_generator
+            and hasattr(self.auditor, 'execution_history')
+            and abstract_sketch.steps
+        ):
+            if self.config.log_hypothesis_generation:
+                logger.info(
+                    f"[HypothesisGuidance] Dynamic Intent Anchor enabled. "
+                    f"Updating remaining steps at step {self._current_step_index} "
+                    f"(after first step execution)..."
+                )
+
+            # 调用动态更新方法
+            try:
+                updated_sketch = self.sketch_generator.update_remaining_steps_dynamic(
+                    abstract_sketch=abstract_sketch,
+                    current_step_index=self._current_step_index,
+                    execution_history=self.auditor.execution_history,
+                    user_query=query,
+                )
+
+                # 如果 sketch 被更新，保存到 auditor
+                if updated_sketch != abstract_sketch:
+                    self.auditor.abstract_sketch = updated_sketch
+                    abstract_sketch = updated_sketch
+
+                    if self.config.log_hypothesis_generation:
+                        logger.info(
+                            "[HypothesisGuidance] ✓ Abstract sketch updated dynamically. "
+                            "Remaining steps have been adjusted based on execution progress."
+                        )
+                else:
+                    if self.config.log_hypothesis_generation:
+                        logger.info(
+                            "[HypothesisGuidance] Abstract sketch unchanged. "
+                            "Current plan remains valid."
+                        )
+
+            except Exception as e:
+                logger.error(f"[HypothesisGuidance] Failed to update abstract steps dynamically: {e}")
+                # 出错时继续使用原始 sketch
+        # ===== 动态 Intent Anchor 逻辑结束 =====
+
         # 2. 【关键修改】先查询Path Cache，基于当前的abstract step description
         cached_tool_selected = False
         cached_recommendation = None
@@ -200,12 +252,13 @@ class HypothesisGuidanceElement(BasePipelineElement):
                 if self.config.log_hypothesis_generation:
                     logger.info(
                         f"[HypothesisGuidance] 🔍 Querying Path Cache for abstract step {self._current_step_index}: "
-                        f"'{abstract_step_desc[:60]}...'"
+                        f"description: '{abstract_step_desc}...'"
+                        f"intent: '{current_step}...'"
                     )
 
                 # 使用相似度匹配查找 top-3 候选
                 cached_paths = self.path_cache.retrieve_paths_by_abstract_step(
-                    abstract_step_desc, top_k=3
+                    current_step.step_type, top_k=3
                 )
 
                 if cached_paths:
@@ -228,11 +281,43 @@ class HypothesisGuidanceElement(BasePipelineElement):
                             )
                             logger.info(f"[HypothesisGuidance] Selection rationale: {rationale}")
 
+                        # === 关键步骤：基于当前上下文推理参数 ===
+                        # 虽然工具名称来自 cache（已验证安全），但参数需要根据当前情况重新推理
+                        # 获取工具的 schema
+                        tool_schema = None
+                        for tool in runtime.functions.values():
+                            if tool.name == selected_tool:
+                                tool_schema = tool.parameters.model_json_schema()
+                                break
+
+                        if self.config.log_hypothesis_generation:
+                            logger.info(
+                                f"[HypothesisGuidance] 🔄 Inferring parameters for cached tool '{selected_tool}' "
+                                f"based on current context (abstract step, execution history, user query)"
+                            )
+
+                        # 调用 hypothesizer 进行参数推理
+                        inferred_params = self.hypothesizer.infer_parameters_for_cached_tool(
+                            cached_tool_name=selected_tool,
+                            abstract_step_description=abstract_step_desc,
+                            user_query=query,
+                            tool_schema=tool_schema,
+                        )
+
+                        if self.config.log_hypothesis_generation:
+                            logger.info(
+                                f"[HypothesisGuidance] ✓ Parameter inference completed: {inferred_params}"
+                            )
+
                         # 构造一个 hypothesis branch（标注来源是 path cache）
-                        # 注意：来自 path cache 的工具已经验证过，可以跳过 verify 阶段
+                        # 注意：
+                        # 1. 工具名称来自 path cache（已验证安全）
+                        # 2. 参数是基于当前上下文推理的（适应性）
+                        # 3. 可以跳过 verify 阶段（工具已验证）
                         cached_branch = self._create_cached_branch(
                             selected_path=selected_path,
                             rationale=rationale or "Selected from path cache based on successful history",
+                            inferred_params=inferred_params,  # 传入推理出的参数
                         )
                 else:
                     if self.config.log_hypothesis_generation:
@@ -492,7 +577,7 @@ class HypothesisGuidanceElement(BasePipelineElement):
             # 检查是否是 SKIP STEP 步骤（既不调用 tool，也不调用 LLM）
             is_skip_step = (
                 commitment_decision.selected_branch is not None
-                and commitment_decision.selected_branch.tool_call.get("tool_name") == "__skip_step__"
+                and commitment_decision.selected_branch.tool_call.get("tool_name") == "__step_skip__"
             )
 
             # === 特殊处理：SKIP STEP 分支 ===
@@ -548,6 +633,19 @@ class HypothesisGuidanceElement(BasePipelineElement):
                     messages=messages,
                     hypothesis_tree=hypothesis_tree,
                 )
+
+                # 提取 branch 的迭代调用信息（如果有）
+                iterative_calls = None
+                if commitment_decision.selected_branch:
+                    branch_metadata = commitment_decision.selected_branch.metadata or {}
+                    if branch_metadata.get("is_merged_iterative"):
+                        iterative_calls = branch_metadata.get("iterative_calls")
+                        if self.config.log_hypothesis_generation:
+                            logger.info(
+                                f"[HypothesisGuidance] Branch contains {len(iterative_calls) if iterative_calls else 0} "
+                                f"iterative calls - passing to executor"
+                            )
+
                 # 设置标志，告诉ConditionalLLM跳过此次调用
                 extra_args = {
                     **extra_args,
@@ -555,6 +653,7 @@ class HypothesisGuidanceElement(BasePipelineElement):
                     'skip_audit': True,  # 跳过 Executor 中的重复审计
                     'vigil_pre_approved': commitment_decision.selected_branch.tool_call["tool_name"] if commitment_decision.selected_branch else None,
                     'current_step_is_reasoning': False,  # 直接工具调用，不是 REASONING 步骤
+                    'vigil_iterative_calls': iterative_calls,  # 传递迭代调用信息
                 }
             else:
                 # 模式B：生成guidance让LLM决策（原有行为）
@@ -1320,12 +1419,13 @@ Please proceed with this tool call."""
 
         return error_message
 
-    def _create_cached_branch(self, selected_path, rationale: str):
+    def _create_cached_branch(self, selected_path, rationale: str, inferred_params: dict[str, Any]):
         """从Path Cache的VerifiedPath创建HypothesisBranch
 
         Args:
             selected_path: 从path cache中选出的VerifiedPath对象
             rationale: LLM选择这个工具的理由
+            inferred_params: 基于当前上下文推理出的参数（而非缓存的旧参数）
 
         Returns:
             HypothesisBranch对象
@@ -1337,11 +1437,12 @@ Please proceed with this tool call."""
         # - necessity_score 设为高值（因为历史证明它有效）
         # - risk_level 设为 "low"（已验证安全）
         # - 标记来源为 path_cache
+        # - 使用推理出的新参数（而非缓存的旧参数）
         branch = HypothesisBranch(
             branch_id=f"cached_{selected_path.path_id}",
             tool_call={
                 "tool_name": selected_path.tool_name,
-                "arguments": selected_path.arguments,
+                "arguments": inferred_params,  # ✓ 使用推理出的新参数，而非 selected_path.arguments
                 "tool_call_id": None,  # Path cache中的工具没有具体的调用ID
             },
             rationale=f"[Path Cache] {rationale} (Successfully used {selected_path.execution_count} times before)",
@@ -1355,13 +1456,15 @@ Please proceed with this tool call."""
                 "source": "path_cache",
                 "execution_count": selected_path.execution_count,
                 "cached_path_id": selected_path.path_id,
+                "inferred_params": inferred_params,  # 记录推理出的参数
+                "cached_params": selected_path.arguments,  # 保留缓存的旧参数供参考
             }
         )
 
         if self.config.log_hypothesis_generation:
             logger.debug(
                 f"[HypothesisGuidance] Created cached branch: {branch.branch_id} "
-                f"for tool '{selected_path.tool_name}'"
+                f"for tool '{selected_path.tool_name}' with inferred params: {inferred_params}"
             )
 
         return branch

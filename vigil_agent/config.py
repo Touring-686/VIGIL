@@ -111,7 +111,7 @@ class VIGILConfig(BaseModel):
     enable_abstract_sketch: bool = True
     """是否启用抽象草图生成"""
 
-    sketch_generator_model: str = "gpt-4o-2024-08-06"
+    sketch_generator_model: str = "qwen3-max"
     """草图生成器使用的LLM模型"""
 
     sketch_generator_temperature: float = 0.0
@@ -122,6 +122,19 @@ class VIGILConfig(BaseModel):
 
     log_sketch_generation: bool = True
     """是否记录草图生成过程"""
+
+    enable_dynamic_intent_anchor: bool = False
+    """是否启用动态 Intent Anchor
+
+    - True: 在执行过程中根据当前执行结果动态更新未执行的 abstract steps
+    - False: 使用静态的 abstract steps（初始化时生成，不再改变）
+    """
+
+    dynamic_intent_anchor_model: str = "gpt-4o-2024-08-06"
+    """动态 Intent Anchor 使用的 LLM 模型"""
+
+    dynamic_intent_anchor_temperature: float = 0.0
+    """动态 Intent Anchor 的温度参数"""
 
     # ============ Hypothesizer 配置 ============
     enable_hypothesis_generation: bool = True
@@ -196,7 +209,9 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            llm_constraint_verifier_model=model,
             hypothesizer_model=model,
+            dynamic_intent_anchor_model=model,
             # 审计模式
             auditor_mode="strict",
             enable_llm_verification=True,
@@ -222,7 +237,9 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            llm_constraint_verifier_model=model,
             hypothesizer_model=model,
+            dynamic_intent_anchor_model=model,
             # 审计模式
             auditor_mode="hybrid",
             enable_llm_verification=True,
@@ -248,7 +265,9 @@ def get_vigil_config(preset: str, model: str = "gpt-4o") -> VIGILConfig:
             sketch_generator_model=model,
             sanitizer_model=model,
             llm_verifier_model=model,
+            llm_constraint_verifier_model=model,
             hypothesizer_model=model,  # 使用指定的 hypothesizer 模型
+            dynamic_intent_anchor_model=model,
             # 审计模式
             auditor_mode="permissive",
             enable_llm_verification=False,

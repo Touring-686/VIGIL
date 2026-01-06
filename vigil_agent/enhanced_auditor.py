@@ -16,9 +16,8 @@ import json
 import logging
 from typing import Any
 
-import openai
-
 from vigil_agent.abstract_sketch import AbstractSketch
+from vigil_agent.client_utils import create_openai_client_for_model
 from vigil_agent.config import VIGILConfig
 from vigil_agent.runtime_auditor import RuntimeAuditor
 from vigil_agent.token_stats_tracker import TokenStatsTracker, get_global_tracker
@@ -59,13 +58,13 @@ class EnhancedRuntimeAuditor(RuntimeAuditor):
         # 初始化 LLM verifier client（如果启用）
         self.llm_client = None
         if config.enable_llm_verification and config.llm_verifier_model:
-            self.llm_client = openai.OpenAI()
+            self.llm_client = create_openai_client_for_model(config.llm_verifier_model)
             logger.info(f"[EnhancedAuditor] LLM verifier initialized with model: {config.llm_verifier_model}")
 
         # 初始化 LLM constraint verifier client（如果启用）
         self.llm_constraint_client = None
         if config.enable_llm_constraint_verification and config.llm_constraint_verifier_model:
-            self.llm_constraint_client = openai.OpenAI()
+            self.llm_constraint_client = create_openai_client_for_model(config.llm_constraint_verifier_model)
             logger.info(
                 f"[EnhancedAuditor] LLM constraint verifier initialized with model: {config.llm_constraint_verifier_model}"
             )
@@ -451,8 +450,8 @@ class EnhancedRuntimeAuditor(RuntimeAuditor):
                 step_desc = f"Step {i}: {step.step_type} - {step.description}"
                 if step.allowed_operations:
                     step_desc += f"\n  Allowed operations: {', '.join(step.allowed_operations)}"
-                if step.forbidden_operations:
-                    step_desc += f"\n  Forbidden operations: {', '.join(step.forbidden_operations)}"
+                # if step.forbidden_operations:
+                #     step_desc += f"\n  Forbidden operations: {', '.join(step.forbidden_operations)}"
                 steps_desc.append(step_desc)
             sketch_description = "\n".join(steps_desc)
 
@@ -469,7 +468,7 @@ class EnhancedRuntimeAuditor(RuntimeAuditor):
                     f"Step {record['step_index'] + 1} ({record['step_description']}):\n"
                     f"  Tool: {record['tool_name']}\n"
                     f"  Arguments: {json.dumps(record['arguments'])}\n"
-                    f"  Result: {record['result'][:200]}{'...' if len(record['result']) > 200 else ''}"
+                    f"  Result: {record['result']}{'...' if len(record['result']) > 200 else ''}"
                 )
             execution_history_description = "\n\n".join(history_lines)
 

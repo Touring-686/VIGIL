@@ -66,10 +66,10 @@ class EnhancedToolsExecutionLoop(BasePipelineElement):
         vigil_logger = Logger().get()
 
         iteration = 0  # 初始化 iteration 变量
-        for iteration in range(self.max_iters):
+        while not extra_args.get("finished_task", False) and iteration < self.max_iters:
             # 执行所有elements（HypothesisGuidance → ConditionalLLM → Executor）
             logger.debug(f"[EnhancedToolsExecutionLoop] Iteration {iteration + 1}/{self.max_iters}")
-
+            iteration += 1
             for element in self.elements:
                 query, runtime, env, messages, extra_args = element.query(
                     query, runtime, env, messages, extra_args

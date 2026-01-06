@@ -141,12 +141,12 @@ def run_task_with_injection_tasks(
         injection_tasks_to_run = injection_tasks
     
     tools_to_use = suite.tools_attack_mode if attack.name == "tool_attack" else suite.tools
-    
+
     if attack.name == "tool_attack":
         # Get attack_vector_type from attack object (set by ToolAttack.__init__)
         attack_vector_type = getattr(attack, "attack_vector_type", None)
         attack_type_filter = getattr(attack, "attack_type", None)
-        
+
         # Combined filtering: support both attack_type and attack_vector_type simultaneously
         if attack_type_filter is not None or attack_vector_type is not None:
             filtered_tasks: list[str] = []
@@ -155,29 +155,29 @@ def run_task_with_injection_tasks(
                 base_iterable = injection_tasks_to_run.keys()
             else:
                 base_iterable = injection_tasks_to_run if injection_tasks_to_run is not None else suite.injection_tasks.keys()
-            
+
             for tid in base_iterable:
                 try:
                     inj_task = suite.get_injection_task_by_id(tid)
-                    
+
                     # Check ATTACK_TYPE if specified
                     if attack_type_filter is not None:
                         task_attack_type = getattr(inj_task, "ATTACK_TYPE", None) or getattr(inj_task.__class__, "ATTACK_TYPE", None)
                         if task_attack_type != attack_type_filter:
                             continue  # Skip if ATTACK_TYPE doesn't match
-                    
+
                     # Check ATTACK_VECTOR if specified
                     if attack_vector_type is not None:
                         task_attack_vector = getattr(inj_task, "ATTACK_VECTOR", None) or getattr(inj_task.__class__, "ATTACK_VECTOR", None)
                         if task_attack_vector != attack_vector_type:
                             continue  # Skip if ATTACK_VECTOR doesn't match
-                    
+
                     # Both conditions passed (or weren't specified)
                     filtered_tasks.append(tid)
                 except Exception as e:
                     logging.debug(f"Error filtering task {tid}: {e}")
                     continue
-            
+
             if filtered_tasks:
                 injection_tasks_to_run = filtered_tasks
                 filter_desc = []
@@ -204,7 +204,7 @@ def run_task_with_injection_tasks(
                     base_iterable = injection_tasks_to_run.keys()
                 else:
                     base_iterable = injection_tasks_to_run if injection_tasks_to_run is not None else suite.injection_tasks.keys()
-                
+
                 for tid in base_iterable:
                     try:
                         inj_task = suite.get_injection_task_by_id(tid)
@@ -216,6 +216,31 @@ def run_task_with_injection_tasks(
                     injection_tasks_to_run = shadow_tasks
             except Exception:
                 ...
+    else:
+        # For non-tool attacks (e.g., important_instructions), exclude tool attack injection tasks
+        # Filter out injection tasks that have ATTACK_VECTOR attribute
+        filtered_tasks_non_tool: list[str] = []
+        if isinstance(injection_tasks_to_run, dict):
+            base_iterable = injection_tasks_to_run.keys()
+        else:
+            base_iterable = injection_tasks_to_run if injection_tasks_to_run is not None else suite.injection_tasks.keys()
+
+        for tid in base_iterable:
+            try:
+                inj_task = suite.get_injection_task_by_id(tid)
+                # Only include tasks that do NOT have ATTACK_VECTOR attribute (original injection tasks)
+                if not hasattr(inj_task, 'ATTACK_VECTOR'):
+                    filtered_tasks_non_tool.append(tid)
+            except Exception as e:
+                logging.debug(f"Error filtering task {tid}: {e}")
+                continue
+
+        if filtered_tasks_non_tool:
+            injection_tasks_to_run = filtered_tasks_non_tool
+            logging.info(f"Filtered to {len(filtered_tasks_non_tool)} original injection tasks (excluding tool attack tasks) for attack '{attack.name}'")
+        else:
+            logging.warning(f"No original injection tasks found for attack '{attack.name}' after filtering out tool attack tasks")
+
 
     injection_task_ids = list(injection_tasks_to_run)
     total_injection_tasks = len(injection_task_ids)
@@ -434,6 +459,19 @@ def benchmark_suite_with_injections(
         }
     else:
         injection_tasks_to_run = suite.injection_tasks
+
+    # Filter injection tasks based on attack type
+    # When using important_instructions attack, exclude tool attack injection tasks
+    if attack.name != "tool_attack":
+        # Filter out injection tasks that have ATTACK_VECTOR attribute (tool attack tasks)
+        filtered_tasks = {}
+        for task_id, task in injection_tasks_to_run.items():
+            # Check if task has ATTACK_VECTOR attribute (indicating it's a tool attack task)
+            if not hasattr(task, 'ATTACK_VECTOR'):
+                filtered_tasks[task_id] = task
+        injection_tasks_to_run = filtered_tasks
+        if len(filtered_tasks) == 0:
+            warnings.warn(f"No injection tasks available for attack '{attack.name}' after filtering tool attack tasks")
 
     injection_tasks_utility_results = {}
     successful_injection_details = []

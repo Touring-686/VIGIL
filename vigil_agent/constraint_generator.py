@@ -573,8 +573,10 @@ class ConstraintGenerator:
         Args:
             config: VIGIL配置
         """
+        from vigil_agent.client_utils import create_openai_client_for_model
+
         self.config = config
-        self.client = openai.OpenAI()
+        self.client = create_openai_client_for_model(config.constraint_generator_model)
         self._constraint_cache: dict[str, ConstraintSet] = {}
 
     def generate_constraints(self, user_query: str, abstract_sketch=None) -> ConstraintSet:

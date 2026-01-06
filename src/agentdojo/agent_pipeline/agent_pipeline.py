@@ -181,6 +181,12 @@ class PipelineConfig(BaseModel):
     override `system_message_name`."""
     tool_output_format: Literal["yaml", "json"] | None = None
     """Format to use for tool outputs. If not provided, the default format is yaml."""
+    use_tool_cache: bool = False
+    """Use cached sanitized tools from disk (only for VIGIL defense, skips tool sanitization)."""
+    enable_path_cache: bool = False
+    """Enable Path Cache for learning from successful executions (only for VIGIL defense)."""
+    enable_dynamic_intent_anchor: bool = False
+    """Enable Dynamic Intent Anchor for updating abstract steps during execution (only for VIGIL defense)."""
 
     @model_validator(mode="after")
     def validate_system_message(self) -> Self:
@@ -340,10 +346,17 @@ class AgentPipeline(BasePipelineElement):
             # Use get_vigil_config to dynamically create config with the same model used for the agent
             vigil_config = get_vigil_config("strict", config.model_id or llm_name)
 
+            # 设置 Path Cache（从命令行参数）
+            vigil_config.enable_path_cache = config.enable_path_cache
+
+            # 设置 Dynamic Intent Anchor（从命令行参数）
+            vigil_config.enable_dynamic_intent_anchor = config.enable_dynamic_intent_anchor
+
             pipeline = create_enhanced_vigil_pipeline(
                 llm=llm,
                 config=vigil_config,
-                system_message=config.system_message
+                system_message=config.system_message,
+                use_tool_cache=config.use_tool_cache,
             )
             pipeline.name = f"{llm_name}-{config.defense}"
             return pipeline

@@ -76,7 +76,9 @@ class CommitmentManager:
         self.openai_client = None
         try:
             import openai
-            self.openai_client = openai.OpenAI()
+            from vigil_agent.client_utils import create_openai_client_for_model
+
+            self.openai_client = create_openai_client_for_model(config.hypothesizer_model)
             logger.info("[CommitmentManager] OpenAI client initialized for Stage 2 selection")
         except Exception as e:
             logger.warning(f"[CommitmentManager] Failed to create OpenAI client: {e}")
