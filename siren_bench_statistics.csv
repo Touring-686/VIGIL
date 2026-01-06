@@ -1,7 +1,0 @@
-﻿,良性任务数量,良性工具数量,恶意工具数量,同域工具数量,注入任务数量,安全用例数量,推理类型
-DataStream (important_instruction),0,0,0,0,0,0,single-path
-Type I-A (参数覆盖-显式注入),0,0,35,0,104,0,single-path
-Type I-B (参数覆盖-条件触发),0,0,18,0,187,0,single-path
-Type II (工具替换攻击),0,0,54,54,179,0,multi-path
-Type III-A (SOP输出劫持),0,0,24,24,18,0,multi-path
-Type III-B (SOP+参数覆盖),0,0,18,18,147,0,multi-path

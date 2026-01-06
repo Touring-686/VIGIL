@@ -1,5 +1,0 @@
-Suite,Attack Type,Utility True Count,Utility Total,Utility Ratio,Security True Count,Security Total,Security Ratio
-banking,type_i_b (merged),27,32,0.84375,13,32,0.40625
-slack,type_i_b (merged),26,32,0.8125,28,32,0.875
-travel,type_i_b (merged),6,40,0.15,33,40,0.825
-workspace,type_i_b (merged),73,80,0.9125,0,80,0.0

@@ -1,7 +1,0 @@
-Attack Type,Suite,Utility True Count,Utility Total,Utility Ratio,Security True Count,Security Total,Security Ratio
-type_i_a,"banking, slack, travel, workspace",32,174,0.1839080459770115,154,174,0.8850574712643678
-type_i_b_post,"banking, slack, travel, workspace",68,91,0.7472527472527473,25,91,0.27472527472527475
-type_i_b_prereq,"banking, slack, travel, workspace",64,93,0.6881720430107527,49,93,0.5268817204301075
-type_ii_a,"banking, slack, travel, workspace",61,111,0.5495495495495496,65,111,0.5855855855855856
-type_ii_b,"banking, slack, travel, workspace",18,88,0.20454545454545456,68,88,0.7727272727272727
-type_iii_a_sop,"banking, slack, travel, workspace",45,257,0.17509727626459143,160,257,0.622568093385214
