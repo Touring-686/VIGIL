@@ -400,3 +400,6 @@ logs/
 runs/
 runs_base/
 vigil_results/
+.vscode/
+uns/
+shell
