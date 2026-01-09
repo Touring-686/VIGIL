@@ -395,7 +395,7 @@ doc/
 baseline/
 结果/
 prompt/
-output_base/
+outputs_base/
 logs/
 runs/
 runs_base/
