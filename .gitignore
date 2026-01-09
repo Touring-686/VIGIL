@@ -389,3 +389,14 @@ notebooks/plots/
 
 runs/
 .claude
+/console_logs
+/docs
+/doc
+/baseline
+/结果
+/prompt
+/output_base
+/logs
+/runs
+/runs_base
+/vigil_results
